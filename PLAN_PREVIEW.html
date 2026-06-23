@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>영상 플랫폼 기획 화면</title>
+    <style>
+      :root {
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        color: #18181b;
+        background: #f8fafc;
+        --line: #e4e4e7;
+        --muted: #71717a;
+        --ink: #111827;
+        --accent: #e11d48;
+        --accent-soft: #fff1f2;
+        --panel: #ffffff;
+        --blue: #2563eb;
+        --green: #059669;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+      }
+
+      .page {
+        min-height: 100vh;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+        gap: 28px;
+        padding: 40px clamp(20px, 5vw, 72px) 28px;
+        background: #ffffff;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .eyebrow {
+        margin: 0 0 12px;
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 780px;
+        font-size: clamp(32px, 5vw, 58px);
+        line-height: 1.04;
+        letter-spacing: 0;
+      }
+
+      .lead {
+        max-width: 720px;
+        margin: 18px 0 0;
+        color: #3f3f46;
+        font-size: 18px;
+        line-height: 1.7;
+      }
+
+      .summary {
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+
+      .summary-item,
+      .section,
+      .goal,
+      .screen,
+      .phase {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      .summary-item {
+        padding: 16px;
+      }
+
+      .summary-item strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--ink);
+      }
+
+      .summary-item span {
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      main {
+        display: grid;
+        gap: 24px;
+        padding: 28px clamp(20px, 5vw, 72px) 56px;
+      }
+
+      .section {
+        padding: 22px;
+      }
+
+      .section h2 {
+        margin: 0 0 16px;
+        font-size: 22px;
+      }
+
+      .grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .grid.three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .grid.five {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .goal,
+      .screen,
+      .phase {
+        padding: 16px;
+      }
+
+      .goal h3,
+      .screen h3,
+      .phase h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+
+      .goal p,
+      .screen p,
+      .phase p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .goal.recommended {
+        border-color: #fecdd3;
+        background: var(--accent-soft);
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        margin-bottom: 10px;
+        color: #be123c;
+        background: #ffe4e6;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .timeline {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(150px, 1fr));
+        gap: 12px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+
+      .phase {
+        min-height: 170px;
+      }
+
+      .phase-number {
+        display: inline-flex;
+        width: 32px;
+        height: 32px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        margin-bottom: 12px;
+        color: #ffffff;
+        background: var(--ink);
+        font-weight: 800;
+      }
+
+      .tech-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .tech-list li {
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        color: #27272a;
+        font-weight: 700;
+      }
+
+      .next {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+      }
+
+      .next h2 {
+        color: #1d4ed8;
+      }
+
+      @media (max-width: 1040px) {
+        .hero,
+        .grid.three,
+        .grid.five {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Video Platform MVP Plan</p>
+          <h1>유튜브형 영상 플랫폼을 프론트엔드 MVP부터 완성합니다.</h1>
+          <p class="lead">
+            처음 목표는 실제 서비스처럼 탐색, 검색, 시청, 채널 확인, 업로드 흐름을 브라우저에서
+            확인할 수 있는 상태를 만드는 것입니다. 이후 백엔드, DB, 인증, 실제 파일 업로드로
+            확장합니다.
+          </p>
+        </div>
+        <div class="summary">
+          <div class="summary-item">
+            <strong>최종 목표</strong>
+            <span>영상 발견부터 시청, 채널, 업로드까지 이어지는 영상 플랫폼 웹앱</span>
+          </div>
+          <div class="summary-item">
+            <strong>초기 목표</strong>
+            <span>React + TypeScript 기반 화면 MVP와 사용자 흐름 완성</span>
+          </div>
+          <div class="summary-item">
+            <strong>진행 방식</strong>
+            <span>목업 데이터로 빠르게 구현한 뒤 API/DB/인증으로 확장</span>
+          </div>
+        </div>
+      </section>
+
+      <main>
+        <section class="section">
+          <h2>접근 방식 비교</h2>
+          <div class="grid three">
+            <article class="goal recommended">
+              <span class="badge">추천</span>
+              <h3>프론트엔드 MVP 우선</h3>
+              <p>가장 빨리 브라우저에서 결과를 확인하고, 현재 프로젝트 구조를 그대로 활용합니다.</p>
+            </article>
+            <article class="goal">
+              <h3>풀스택 우선</h3>
+              <p>처음부터 서버와 DB까지 잡지만 범위가 커져 화면 완성이 늦어질 수 있습니다.</p>
+            </article>
+            <article class="goal">
+              <h3>디자인 시스템 우선</h3>
+              <p>장기 일관성은 좋지만 초기 사용자 흐름 검증에는 속도가 느립니다.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>주요 화면</h2>
+          <div class="grid five">
+            <article class="screen">
+              <h3>홈</h3>
+              <p>추천 영상, 카테고리, 검색, 사이드바</p>
+            </article>
+            <article class="screen">
+              <h3>검색</h3>
+              <p>검색어 기반 결과와 빈 상태</p>
+            </article>
+            <article class="screen">
+              <h3>영상 상세</h3>
+              <p>플레이어, 댓글, 추천 영상, 채널 정보</p>
+            </article>
+            <article class="screen">
+              <h3>채널</h3>
+              <p>배너, 프로필, 구독자, 채널 영상</p>
+            </article>
+            <article class="screen">
+              <h3>업로드</h3>
+              <p>메타데이터 입력과 등록 흐름 시뮬레이션</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>사용 기술</h2>
+          <ul class="tech-list">
+            <li>React</li>
+            <li>TypeScript</li>
+            <li>Vite</li>
+            <li>React Router</li>
+            <li>CSS</li>
+            <li>lucide-react</li>
+            <li>Mock Data</li>
+          </ul>
+        </section>
+
+        <section class="section">
+          <h2>중간 목표</h2>
+          <div class="timeline">
+            <article class="phase">
+              <span class="phase-number">1</span>
+              <h3>기반 점검</h3>
+              <p>문서 정리, 빌드 확인, 현재 라우트 확인</p>
+            </article>
+            <article class="phase">
+              <span class="phase-number">2</span>
+              <h3>홈 개선</h3>
+              <p>영상 카드, 카테고리, 반응형 그리드 정리</p>
+            </article>
+            <article class="phase">
+              <span class="phase-number">3</span>
+              <h3>상세 개선</h3>
+              <p>플레이어, 댓글, 추천 영상, 채널 영역 강화</p>
+            </article>
+            <article class="phase">
+              <span class="phase-number">4</span>
+              <h3>검색/채널</h3>
+              <p>검색 결과와 채널 페이지 흐름 완성</p>
+            </article>
+            <article class="phase">
+              <span class="phase-number">5</span>
+              <h3>업로드</h3>
+              <p>폼 검증과 등록 시뮬레이션 구현</p>
+            </article>
+            <article class="phase">
+              <span class="phase-number">6</span>
+              <h3>품질 정리</h3>
+              <p>모바일, 접근성, 빈 상태, 오류 상태 점검</p>
+            </article>
+            <article class="phase">
+              <span class="phase-number">7</span>
+              <h3>확장 준비</h3>
+              <p>API, DB, 인증, 파일 저장소 계획 수립</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section next">
+          <h2>다음 진행</h2>
+          <p>
+            이 계획을 기준으로 먼저 빌드와 현재 화면을 확인한 뒤, 1단계부터 구현을 진행합니다.
+            MVP가 안정되면 백엔드 확장 설계를 별도 문서로 작성합니다.
+          </p>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

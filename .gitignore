@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.superpowers/
+
+*.log
+vite-dev.err.log
+vite-dev.log
+
+.env
+.env.*
+!.env.example
