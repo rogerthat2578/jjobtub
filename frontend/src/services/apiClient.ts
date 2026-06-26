@@ -2,7 +2,7 @@ import type { Channel } from "../types/channel";
 import type { Comment } from "../types/comment";
 import type { Video } from "../types/video";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:4000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 type ApiChannel = {
   id: string;

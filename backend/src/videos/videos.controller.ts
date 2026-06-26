@@ -51,4 +51,13 @@ export class VideosController {
 
     return new StreamableFile(streamResponse.stream);
   }
+
+  @Get(':id/thumbnail')
+  getThumbnail(@Param('id') id: string, @Res({ passthrough: true }) response: Response) {
+    response.set({
+      'Content-Type': 'image/svg+xml',
+      'Cache-Control': 'public, max-age=300',
+    });
+    return this.videosService.getFallbackThumbnail(id);
+  }
 }

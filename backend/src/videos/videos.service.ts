@@ -139,4 +139,14 @@ export class VideosService {
       stream: this.storage.createReadStream(file.storagePath, { start: range.start, end: range.end }),
     };
   }
+
+  getFallbackThumbnail(id: string) {
+    const label = id.slice(0, 8);
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#111827"/>
+  <rect x="60" y="60" width="1160" height="600" rx="28" fill="#27272a"/>
+  <path d="M560 260v200l180-100-180-100z" fill="#f43f5e"/>
+  <text x="640" y="560" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#ffffff">jjobtub ${label}</text>
+</svg>`;
+  }
 }

@@ -10,3 +10,4 @@ vite-dev.log
 .env.*
 !.env.example
 backend/storage/
+test_file/
