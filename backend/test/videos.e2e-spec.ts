@@ -115,4 +115,31 @@ describe('Videos API', () => {
       },
     });
   });
+
+  it('creates a public draft video when visibility is omitted', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/videos')
+      .send({
+        title: 'Default Public Draft',
+        description: 'Draft description',
+        category: '개발',
+        channelId: channel.id,
+      })
+      .expect(201);
+
+    expect(response.body).toEqual({
+      id: 'draft-1',
+      status: 'DRAFT',
+    });
+    expect(prisma.video.create).toHaveBeenLastCalledWith({
+      data: {
+        channelId: channel.id,
+        title: 'Default Public Draft',
+        description: 'Draft description',
+        category: '개발',
+        visibility: 'PUBLIC',
+        status: 'DRAFT',
+      },
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import { VideoVisibility } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateVideoDto {
   @IsString()
@@ -17,7 +17,8 @@ export class CreateVideoDto {
   category!: string;
 
   @IsEnum(VideoVisibility)
-  visibility!: VideoVisibility;
+  @IsOptional()
+  visibility?: VideoVisibility;
 
   @IsString()
   @IsNotEmpty()

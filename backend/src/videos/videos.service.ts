@@ -61,7 +61,7 @@ export class VideosService {
         title: dto.title,
         description: dto.description,
         category: dto.category,
-        visibility: dto.visibility,
+        visibility: dto.visibility ?? 'PUBLIC',
         status: 'DRAFT',
       },
     });
