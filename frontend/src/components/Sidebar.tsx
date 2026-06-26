@@ -9,11 +9,16 @@ const items = [
   { label: "기록", icon: FolderClock, to: "/search?q=최근" },
 ];
 
-export function Sidebar() {
+type SidebarProps = {
+  isOpen: boolean;
+  onNavigate: () => void;
+};
+
+export function Sidebar({ isOpen, onNavigate }: SidebarProps) {
   return (
-    <aside className="sidebar" aria-label="주요 메뉴">
+    <aside className={`sidebar ${isOpen ? "sidebar-open" : ""}`} aria-label="주요 메뉴">
       {items.map((item) => (
-        <NavLink className="sidebar-link" key={item.label} to={item.to}>
+        <NavLink className="sidebar-link" key={item.label} to={item.to} onClick={onNavigate}>
           <item.icon size={20} />
           <span>{item.label}</span>
         </NavLink>

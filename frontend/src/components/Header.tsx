@@ -1,11 +1,22 @@
 import { Menu, Search, Upload, UserCircle, Video } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 
-export function Header() {
+type HeaderProps = {
+  onMenuClick: () => void;
+};
+
+export function Header({ onMenuClick }: HeaderProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const { user, login, logout, isLoading } = useAuth();
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [email, setEmail] = useState("creator@jjobtub.local");
+  const [password, setPassword] = useState("password123");
+  const [authError, setAuthError] = useState("");
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -13,10 +24,39 @@ export function Header() {
     navigate(trimmedQuery ? `/search?q=${encodeURIComponent(trimmedQuery)}` : "/");
   }
 
+  async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsAuthSubmitting(true);
+    setAuthError("");
+
+    try {
+      await login({ email, password });
+      setIsAccountOpen(false);
+    } catch {
+      setAuthError("이메일 또는 비밀번호를 확인하세요.");
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }
+
+  async function handleLogout() {
+    setIsAuthSubmitting(true);
+    setAuthError("");
+
+    try {
+      await logout();
+      setIsAccountOpen(false);
+    } catch {
+      setAuthError("로그아웃하지 못했습니다.");
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }
+
   return (
     <header className="topbar">
       <div className="brand-row">
-        <button className="icon-button" type="button" aria-label="메뉴 열기">
+        <button className="icon-button" type="button" aria-label="메뉴 열기" onClick={onMenuClick}>
           <Menu size={21} />
         </button>
         <Link className="brand" to="/">
@@ -45,9 +85,51 @@ export function Header() {
           <Upload size={18} />
           <span>업로드</span>
         </Link>
-        <button className="icon-button" type="button" aria-label="계정">
-          <UserCircle size={24} />
-        </button>
+        <div className="account-menu">
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="계정"
+            aria-expanded={isAccountOpen}
+            onClick={() => setIsAccountOpen((isOpen) => !isOpen)}
+          >
+            <UserCircle size={24} />
+          </button>
+          {isAccountOpen && (
+            <div className="account-popover">
+              {user ? (
+                <>
+                  <strong>{user.displayName}</strong>
+                  <small>{user.email}</small>
+                  {authError && <p className="form-error">{authError}</p>}
+                  <button className="primary-button" type="button" onClick={handleLogout} disabled={isAuthSubmitting}>
+                    로그아웃
+                  </button>
+                </>
+              ) : (
+                <form className="login-form" onSubmit={handleLoginSubmit}>
+                  <strong>{isLoading ? "계정 확인 중" : "로그인"}</strong>
+                  <label>
+                    <span>이메일</span>
+                    <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
+                  </label>
+                  <label>
+                    <span>비밀번호</span>
+                    <input
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      type="password"
+                    />
+                  </label>
+                  {authError && <p className="form-error">{authError}</p>}
+                  <button className="primary-button" type="submit" disabled={isAuthSubmitting || isLoading}>
+                    {isAuthSubmitting ? "로그인 중" : "로그인"}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

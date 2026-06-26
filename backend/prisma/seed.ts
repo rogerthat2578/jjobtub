@@ -12,6 +12,8 @@ async function main() {
   const user = await prisma.user.create({
     data: {
       email: 'creator@jjobtub.local',
+      passwordHash:
+        'scrypt:test-salt:39b6436a81d9f2258eef8c7f0a2e04327027806dc2cbdbae6be3ae72b6207a1961c9b8048985535cbea36326279cbbfc7ad042fe2e036d51c13230dac2d0eb13',
       displayName: '프론트엔드 연구소',
       avatarUrl:
         'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=256&q=80',

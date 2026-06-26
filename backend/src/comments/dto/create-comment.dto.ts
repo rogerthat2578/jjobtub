@@ -6,6 +6,10 @@ export class CreateCommentDto {
   authorId?: string;
 
   @IsString()
+  @IsOptional()
+  parentId?: string;
+
+  @IsString()
   @IsNotEmpty()
   @MaxLength(1000)
   body!: string;

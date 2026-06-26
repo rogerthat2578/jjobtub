@@ -1,6 +1,7 @@
 import { Bell, Share2, ThumbsUp } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import { CommentList } from "../components/CommentList";
 import { VideoCard } from "../components/VideoCard";
 import { createComment, fetchComments, fetchVideo, fetchVideos, type VideoListResult } from "../services/apiClient";
@@ -10,6 +11,7 @@ import type { Video } from "../types/video";
 
 export function WatchPage() {
   const { videoId } = useParams();
+  const { user } = useAuth();
   const [video, setVideo] = useState<Video | null>(null);
   const [channel, setChannel] = useState<Channel | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -44,6 +46,10 @@ export function WatchPage() {
     if (!videoId || isSubmittingComment) {
       return;
     }
+    if (!user) {
+      setCommentError("로그인 후 댓글을 작성할 수 있습니다.");
+      return;
+    }
 
     const trimmedBody = commentBody.trim();
     if (!trimmedBody) {
@@ -63,6 +69,19 @@ export function WatchPage() {
     } finally {
       setIsSubmittingComment(false);
     }
+  }
+
+  async function handleReply(parentId: string, body: string) {
+    if (!videoId || !user) {
+      throw new Error("Login required");
+    }
+
+    const createdReply = await createComment(videoId, body, parentId);
+    setComments((currentComments) =>
+      currentComments.map((comment) =>
+        comment.id === parentId ? { ...comment, replies: [...comment.replies, createdReply] } : comment,
+      ),
+    );
   }
 
   if (notFound) {
@@ -117,22 +136,23 @@ export function WatchPage() {
           <h2>댓글 {comments.length}개</h2>
           <form className="comment-form" onSubmit={handleCommentSubmit}>
             <label htmlFor="comment-body">댓글 작성</label>
+            {!user && <p className="form-error">로그인 후 댓글을 작성할 수 있습니다.</p>}
             <textarea
               id="comment-body"
               maxLength={1000}
               placeholder="댓글을 입력하세요"
               value={commentBody}
               onChange={(event) => setCommentBody(event.target.value)}
-              disabled={isSubmittingComment}
+              disabled={!user || isSubmittingComment}
             />
             <div className="comment-form-actions">
               {commentError ? <p className="form-error">{commentError}</p> : <span />}
-              <button className="pill-button" type="submit" disabled={isSubmittingComment}>
+              <button className="pill-button" type="submit" disabled={!user || isSubmittingComment}>
                 {isSubmittingComment ? "등록 중" : "댓글 등록"}
               </button>
             </div>
           </form>
-          <CommentList comments={comments} />
+          <CommentList comments={comments} canReply={Boolean(user)} onReply={handleReply} />
         </section>
       </section>
 

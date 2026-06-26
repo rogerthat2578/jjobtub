@@ -1,5 +1,5 @@
 import { UploadCloud } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { DragEvent, FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createVideo, fetchVideos, uploadVideoFile } from "../services/apiClient";
 
@@ -12,6 +12,7 @@ export function UploadPage() {
   const [channelId, setChannelId] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     fetchVideos()
@@ -23,6 +24,40 @@ export function UploadPage() {
       })
       .catch(() => setError("업로드에 사용할 채널을 불러오지 못했습니다."));
   }, []);
+
+  function selectFile(nextFile: File | undefined | null) {
+    if (!nextFile) {
+      setFile(null);
+      return;
+    }
+
+    const isMp4 = nextFile.type === "video/mp4" || nextFile.name.toLowerCase().endsWith(".mp4");
+    if (!isMp4) {
+      setFile(null);
+      setError("MP4 파일만 업로드할 수 있습니다.");
+      return;
+    }
+
+    setFile(nextFile);
+    setError("");
+  }
+
+  function handleDragOver(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(event: DragEvent<HTMLLabelElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setIsDragging(false);
+    }
+  }
+
+  function handleDrop(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setIsDragging(false);
+    selectFile(event.dataTransfer.files[0]);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,12 +120,19 @@ export function UploadPage() {
             <option>라이프스타일</option>
           </select>
         </label>
-        <label>
-          <span>MP4 파일</span>
+        <label
+          className={`dropzone ${isDragging ? "dropzone-active" : ""}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <UploadCloud size={28} />
+          <span>MP4 파일을 끌어다 놓거나 클릭해서 선택하세요.</span>
+          <small>{file ? file.name : "최대 500MB MP4 파일"}</small>
           <input
             accept="video/mp4"
             type="file"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => selectFile(event.target.files?.[0])}
           />
         </label>
         {error && <p className="form-error">{error}</p>}

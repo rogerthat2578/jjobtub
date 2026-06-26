@@ -1,5 +1,6 @@
 import type { Channel } from "../types/channel";
 import type { Comment } from "../types/comment";
+import type { User } from "../types/user";
 import type { Video } from "../types/video";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
@@ -36,11 +37,20 @@ type ApiComment = {
   body: string;
   likeCount: number;
   createdAt: string;
+  parentId: string | null;
   author: {
     id: string;
     displayName: string;
     avatarUrl?: string | null;
   };
+  replies?: ApiComment[];
+};
+
+type ApiUser = {
+  id: string;
+  email: string;
+  displayName: string;
+  avatarUrl?: string | null;
 };
 
 export type VideoListResult = {
@@ -82,13 +92,31 @@ export async function fetchComments(videoId: string) {
   return data.items.map((comment) => mapComment(videoId, comment));
 }
 
-export async function createComment(videoId: string, body: string) {
+export async function createComment(videoId: string, body: string, parentId?: string) {
   const comment = await request<ApiComment>(`/videos/${videoId}/comments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({ body, parentId }),
   });
   return mapComment(videoId, comment);
+}
+
+export async function fetchCurrentUser() {
+  const data = await request<{ user: ApiUser }>("/auth/me");
+  return mapUser(data.user);
+}
+
+export async function login(input: { email: string; password: string }) {
+  const data = await request<{ user: ApiUser }>("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return mapUser(data.user);
+}
+
+export async function logout() {
+  await request<{ ok: boolean }>("/auth/logout", { method: "POST" });
 }
 
 export async function createVideo(input: {
@@ -119,7 +147,10 @@ export function streamUrl(videoId: string) {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, init);
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    credentials: "include",
+    ...init,
+  });
   if (!response.ok) {
     const message = await response.text();
     throw new Error(message || `Request failed with ${response.status}`);
@@ -169,11 +200,22 @@ function mapComment(videoId: string, comment: ApiComment): Comment {
   return {
     id: comment.id,
     videoId,
+    parentId: comment.parentId,
     author: comment.author.displayName,
     avatarUrl: comment.author.avatarUrl ?? "",
     body: comment.body,
     postedAt: formatDate(comment.createdAt),
     likes: comment.likeCount,
+    replies: (comment.replies ?? []).map((reply) => mapComment(videoId, reply)),
+  };
+}
+
+function mapUser(user: ApiUser): User {
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl ?? "",
   };
 }
 
