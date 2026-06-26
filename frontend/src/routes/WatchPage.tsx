@@ -1,9 +1,9 @@
 import { Bell, Share2, ThumbsUp } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { CommentList } from "../components/CommentList";
 import { VideoCard } from "../components/VideoCard";
-import { fetchComments, fetchVideo, fetchVideos, type VideoListResult } from "../services/apiClient";
+import { createComment, fetchComments, fetchVideo, fetchVideos, type VideoListResult } from "../services/apiClient";
 import type { Channel } from "../types/channel";
 import type { Comment } from "../types/comment";
 import type { Video } from "../types/video";
@@ -15,6 +15,9 @@ export function WatchPage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [recommended, setRecommended] = useState<VideoListResult>({ videos: [], channelsById: {} });
   const [notFound, setNotFound] = useState(false);
+  const [commentBody, setCommentBody] = useState("");
+  const [commentError, setCommentError] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   useEffect(() => {
     if (!videoId) {
@@ -35,6 +38,32 @@ export function WatchPage() {
       })
       .catch(() => setNotFound(true));
   }, [videoId]);
+
+  async function handleCommentSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!videoId || isSubmittingComment) {
+      return;
+    }
+
+    const trimmedBody = commentBody.trim();
+    if (!trimmedBody) {
+      setCommentError("댓글 내용을 입력하세요.");
+      return;
+    }
+
+    setIsSubmittingComment(true);
+    setCommentError("");
+
+    try {
+      const createdComment = await createComment(videoId, trimmedBody);
+      setComments((currentComments) => [...currentComments, createdComment]);
+      setCommentBody("");
+    } catch {
+      setCommentError("댓글을 등록하지 못했습니다. 잠시 후 다시 시도하세요.");
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  }
 
   if (notFound) {
     return <Navigate to="/" replace />;
@@ -86,6 +115,23 @@ export function WatchPage() {
 
         <section className="comments-section">
           <h2>댓글 {comments.length}개</h2>
+          <form className="comment-form" onSubmit={handleCommentSubmit}>
+            <label htmlFor="comment-body">댓글 작성</label>
+            <textarea
+              id="comment-body"
+              maxLength={1000}
+              placeholder="댓글을 입력하세요"
+              value={commentBody}
+              onChange={(event) => setCommentBody(event.target.value)}
+              disabled={isSubmittingComment}
+            />
+            <div className="comment-form-actions">
+              {commentError ? <p className="form-error">{commentError}</p> : <span />}
+              <button className="pill-button" type="submit" disabled={isSubmittingComment}>
+                {isSubmittingComment ? "등록 중" : "댓글 등록"}
+              </button>
+            </div>
+          </form>
           <CommentList comments={comments} />
         </section>
       </section>

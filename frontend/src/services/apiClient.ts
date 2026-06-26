@@ -82,6 +82,15 @@ export async function fetchComments(videoId: string) {
   return data.items.map((comment) => mapComment(videoId, comment));
 }
 
+export async function createComment(videoId: string, body: string) {
+  const comment = await request<ApiComment>(`/videos/${videoId}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+  return mapComment(videoId, comment);
+}
+
 export async function createVideo(input: {
   title: string;
   description: string;

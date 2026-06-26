@@ -44,7 +44,9 @@ export class CommentsService {
       throw new NotFoundException('Video not found');
     }
 
-    const author = await this.prisma.user.findUnique({ where: { id: dto.authorId } });
+    const author = dto.authorId
+      ? await this.prisma.user.findUnique({ where: { id: dto.authorId } })
+      : await this.prisma.user.findFirst({ orderBy: { createdAt: 'asc' } });
     if (!author) {
       throw new NotFoundException('Author not found');
     }
@@ -52,7 +54,7 @@ export class CommentsService {
     const comment = await this.prisma.comment.create({
       data: {
         videoId,
-        authorId: dto.authorId,
+        authorId: author.id,
         body: dto.body,
       },
       include: { author: true },

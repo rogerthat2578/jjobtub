@@ -32,6 +32,7 @@ describe('Comments API', () => {
     },
     user: {
       findUnique: jest.fn().mockResolvedValue(author),
+      findFirst: jest.fn().mockResolvedValue(author),
     },
     comment: {
       findMany: jest.fn().mockResolvedValue([comment]),
@@ -81,6 +82,28 @@ describe('Comments API', () => {
       author: { id: author.id, displayName: 'Comment Author' },
     });
     expect(prisma.comment.create).toHaveBeenCalledWith({
+      data: {
+        videoId: 'video-1',
+        authorId: author.id,
+        body: 'New comment',
+      },
+      include: { author: true },
+    });
+  });
+
+  it('creates a comment with the default author when authorId is omitted', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/videos/video-1/comments')
+      .send({ body: 'New comment' })
+      .expect(201);
+
+    expect(response.body).toMatchObject({
+      id: 'comment-2',
+      body: 'New comment',
+      author: { id: author.id, displayName: 'Comment Author' },
+    });
+    expect(prisma.user.findFirst).toHaveBeenCalled();
+    expect(prisma.comment.create).toHaveBeenLastCalledWith({
       data: {
         videoId: 'video-1',
         authorId: author.id,
