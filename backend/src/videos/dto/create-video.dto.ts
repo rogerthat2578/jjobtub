@@ -1,0 +1,25 @@
+import { VideoVisibility } from '@prisma/client';
+import { IsEnum, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+
+export class CreateVideoDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  title!: string;
+
+  @IsString()
+  @MaxLength(5000)
+  description!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(40)
+  category!: string;
+
+  @IsEnum(VideoVisibility)
+  visibility!: VideoVisibility;
+
+  @IsString()
+  @IsNotEmpty()
+  channelId!: string;
+}
