@@ -1,10 +1,10 @@
-# jjobtub Backend Foundation Implementation Plan
+﻿# jjobtub Backend Foundation Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the first working backend slice for jjobtub: NestJS API scaffold, PostgreSQL/Prisma schema, seed data, and read-only video/channel/comment endpoints.
 
-**Architecture:** Add `apps/api` beside the existing Vite frontend. The API uses NestJS modules for videos, channels, comments, and Prisma database access, with response DTO mappers that match the current frontend mock-data shape closely enough for later integration.
+**Architecture:** Move the existing Vite frontend into `frontend/` and add the NestJS API in sibling `backend/`. The API uses NestJS modules for videos, channels, comments, and Prisma database access, with response DTO mappers that match the current frontend mock-data shape closely enough for later integration.
 
 **Tech Stack:** Node.js, TypeScript, NestJS, Prisma, PostgreSQL, Jest/Supertest.
 
@@ -12,33 +12,33 @@
 
 ## File Structure
 
-- Create `apps/api/package.json`: backend-local scripts and dependencies.
-- Create `apps/api/tsconfig.json`: TypeScript build settings for NestJS.
-- Create `apps/api/tsconfig.build.json`: production build excludes tests.
-- Create `apps/api/nest-cli.json`: NestJS compiler entry.
-- Create `apps/api/.env.example`: documented local API environment values.
-- Create `apps/api/src/main.ts`: bootstrap Nest app with `/api` global prefix and CORS.
-- Create `apps/api/src/app.module.ts`: root module composition.
-- Create `apps/api/src/prisma/prisma.module.ts`: exports Prisma service.
-- Create `apps/api/src/prisma/prisma.service.ts`: Prisma lifecycle service.
-- Create `apps/api/src/videos/videos.module.ts`: videos module wiring.
-- Create `apps/api/src/videos/videos.service.ts`: video query and create logic.
-- Create `apps/api/src/videos/videos.controller.ts`: `/api/videos` routes.
-- Create `apps/api/src/videos/dto/create-video.dto.ts`: request body type and validation decorators.
-- Create `apps/api/src/videos/video-response.ts`: response mappers for list/detail payloads.
-- Create `apps/api/src/channels/channels.module.ts`: channels module wiring.
-- Create `apps/api/src/channels/channels.service.ts`: channel query logic.
-- Create `apps/api/src/channels/channels.controller.ts`: `/api/channels` routes.
-- Create `apps/api/src/comments/comments.module.ts`: comments module wiring.
-- Create `apps/api/src/comments/comments.service.ts`: comment query/create logic.
-- Create `apps/api/src/comments/comments.controller.ts`: `/api/videos/:id/comments` routes.
-- Create `apps/api/src/comments/dto/create-comment.dto.ts`: request body type and validation decorators.
-- Create `apps/api/prisma/schema.prisma`: initial relational schema.
-- Create `apps/api/prisma/seed.ts`: seed user, channel, videos, and comments.
-- Create `apps/api/test/videos.e2e-spec.ts`: endpoint-level tests for video list/detail/create.
-- Create `apps/api/test/channels.e2e-spec.ts`: endpoint-level tests for channel detail/videos.
-- Create `apps/api/test/comments.e2e-spec.ts`: endpoint-level tests for comments list/create.
-- Modify `package.json`: add root scripts that delegate to `apps/api`.
+- Create `backend/package.json`: backend-local scripts and dependencies.
+- Create `backend/tsconfig.json`: TypeScript build settings for NestJS.
+- Create `backend/tsconfig.build.json`: production build excludes tests.
+- Create `backend/nest-cli.json`: NestJS compiler entry.
+- Create `backend/.env.example`: documented local API environment values.
+- Create `backend/src/main.ts`: bootstrap Nest app with `/api` global prefix and CORS.
+- Create `backend/src/app.module.ts`: root module composition.
+- Create `backend/src/prisma/prisma.module.ts`: exports Prisma service.
+- Create `backend/src/prisma/prisma.service.ts`: Prisma lifecycle service.
+- Create `backend/src/videos/videos.module.ts`: videos module wiring.
+- Create `backend/src/videos/videos.service.ts`: video query and create logic.
+- Create `backend/src/videos/videos.controller.ts`: `/api/videos` routes.
+- Create `backend/src/videos/dto/create-video.dto.ts`: request body type and validation decorators.
+- Create `backend/src/videos/video-response.ts`: response mappers for list/detail payloads.
+- Create `backend/src/channels/channels.module.ts`: channels module wiring.
+- Create `backend/src/channels/channels.service.ts`: channel query logic.
+- Create `backend/src/channels/channels.controller.ts`: `/api/channels` routes.
+- Create `backend/src/comments/comments.module.ts`: comments module wiring.
+- Create `backend/src/comments/comments.service.ts`: comment query/create logic.
+- Create `backend/src/comments/comments.controller.ts`: `/api/videos/:id/comments` routes.
+- Create `backend/src/comments/dto/create-comment.dto.ts`: request body type and validation decorators.
+- Create `backend/prisma/schema.prisma`: initial relational schema.
+- Create `backend/prisma/seed.ts`: seed user, channel, videos, and comments.
+- Create `backend/test/videos.e2e-spec.ts`: endpoint-level tests for video list/detail/create.
+- Create `backend/test/channels.e2e-spec.ts`: endpoint-level tests for channel detail/videos.
+- Create `backend/test/comments.e2e-spec.ts`: endpoint-level tests for comments list/create.
+- Create root `package.json`: add scripts that delegate to `frontend` and `backend`.
 - Modify `.gitignore`: ignore API build output and local env files.
 
 ---
@@ -46,17 +46,17 @@
 ### Task 1: Backend Package Scaffold
 
 **Files:**
-- Create: `apps/api/package.json`
-- Create: `apps/api/tsconfig.json`
-- Create: `apps/api/tsconfig.build.json`
-- Create: `apps/api/nest-cli.json`
-- Create: `apps/api/.env.example`
+- Create: `backend/package.json`
+- Create: `backend/tsconfig.json`
+- Create: `backend/tsconfig.build.json`
+- Create: `backend/nest-cli.json`
+- Create: `backend/.env.example`
 - Modify: `package.json`
 - Modify: `.gitignore`
 
 - [ ] **Step 1: Add backend package files**
 
-Create `apps/api/package.json`:
+Create `backend/package.json`:
 
 ```json
 {
@@ -105,7 +105,7 @@ Create `apps/api/package.json`:
 }
 ```
 
-Create `apps/api/tsconfig.json`:
+Create `backend/tsconfig.json`:
 
 ```json
 {
@@ -128,7 +128,7 @@ Create `apps/api/tsconfig.json`:
 }
 ```
 
-Create `apps/api/tsconfig.build.json`:
+Create `backend/tsconfig.build.json`:
 
 ```json
 {
@@ -137,7 +137,7 @@ Create `apps/api/tsconfig.build.json`:
 }
 ```
 
-Create `apps/api/nest-cli.json`:
+Create `backend/nest-cli.json`:
 
 ```json
 {
@@ -146,7 +146,7 @@ Create `apps/api/nest-cli.json`:
 }
 ```
 
-Create `apps/api/.env.example`:
+Create `backend/.env.example`:
 
 ```text
 DATABASE_URL="postgresql://postgres:password@localhost:5432/jjobtub_dev?schema=public"
@@ -157,17 +157,11 @@ MAX_UPLOAD_BYTES=524288000
 
 - [ ] **Step 2: Add root scripts**
 
-Modify root `package.json` scripts to include:
+Create root `package.json` with workspace scripts:
 
 ```json
 {
-  "api:dev": "npm --prefix apps/api run dev",
-  "api:build": "npm --prefix apps/api run build",
-  "api:test": "npm --prefix apps/api run test",
-  "api:test:e2e": "npm --prefix apps/api run test:e2e",
-  "api:prisma:generate": "npm --prefix apps/api run prisma:generate",
-  "api:prisma:migrate": "npm --prefix apps/api run prisma:migrate",
-  "api:prisma:seed": "npm --prefix apps/api run prisma:seed"
+  "frontend:dev": "npm --prefix frontend run dev",`n  "frontend:build": "npm --prefix frontend run build",`n  "frontend:preview": "npm --prefix frontend run preview",`n  "backend:dev": "npm --prefix backend run dev",`n  "backend:build": "npm --prefix backend run build",`n  "backend:test": "npm --prefix backend run test",`n  "backend:test:e2e": "npm --prefix backend run test:e2e",`n  "backend:prisma:generate": "npm --prefix backend run prisma:generate",`n  "backend:prisma:migrate": "npm --prefix backend run prisma:migrate",`n  "backend:prisma:seed": "npm --prefix backend run prisma:seed"
 }
 ```
 
@@ -176,9 +170,9 @@ Modify root `package.json` scripts to include:
 Append to `.gitignore`:
 
 ```text
-apps/api/dist/
-apps/api/.env
-apps/api/storage/
+backend/dist/
+backend/.env
+backend/storage/
 ```
 
 - [ ] **Step 4: Install backend dependencies**
@@ -186,17 +180,17 @@ apps/api/storage/
 Run:
 
 ```powershell
-npm install --prefix apps/api
+npm install --prefix backend
 ```
 
-Expected: `apps/api/package-lock.json` is created and npm exits with code `0`.
+Expected: `backend/package-lock.json` is created and npm exits with code `0`.
 
 - [ ] **Step 5: Commit scaffold**
 
 Run:
 
 ```powershell
-git add package.json .gitignore apps/api/package.json apps/api/package-lock.json apps/api/tsconfig.json apps/api/tsconfig.build.json apps/api/nest-cli.json apps/api/.env.example
+git add package.json .gitignore backend/package.json backend/package-lock.json backend/tsconfig.json backend/tsconfig.build.json backend/nest-cli.json backend/.env.example
 git commit -m "chore: scaffold backend package"
 ```
 
@@ -207,12 +201,12 @@ Expected: commit succeeds with the scaffold files.
 ### Task 2: Prisma Schema And Seed
 
 **Files:**
-- Create: `apps/api/prisma/schema.prisma`
-- Create: `apps/api/prisma/seed.ts`
+- Create: `backend/prisma/schema.prisma`
+- Create: `backend/prisma/seed.ts`
 
 - [ ] **Step 1: Write the Prisma schema**
 
-Create `apps/api/prisma/schema.prisma`:
+Create `backend/prisma/schema.prisma`:
 
 ```prisma
 generator client {
@@ -318,7 +312,7 @@ model Comment {
 
 - [ ] **Step 2: Write seed data**
 
-Create `apps/api/prisma/seed.ts`:
+Create `backend/prisma/seed.ts`:
 
 ```ts
 import { PrismaClient, VideoStatus, VideoVisibility } from '@prisma/client';
@@ -335,7 +329,7 @@ async function main() {
   const user = await prisma.user.create({
     data: {
       email: 'creator@jjobtub.local',
-      displayName: '프론트엔드 연구소',
+      displayName: '?꾨줎?몄뿏???곌뎄??,
       avatarUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=256&q=80',
     },
   });
@@ -343,7 +337,7 @@ async function main() {
   const channel = await prisma.channel.create({
     data: {
       ownerId: user.id,
-      name: '프론트엔드 연구소',
+      name: '?꾨줎?몄뿏???곌뎄??,
       description: 'React, TypeScript, UI engineering videos.',
       avatarUrl: user.avatarUrl,
       bannerUrl: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1600&q=80',
@@ -354,9 +348,9 @@ async function main() {
   const video = await prisma.video.create({
     data: {
       channelId: channel.id,
-      title: 'React로 영상 플랫폼 만들기',
-      description: 'jjobtub MVP를 만들며 라우팅, 카드 그리드, 상세 페이지를 구성합니다.',
-      category: '개발',
+      title: 'React濡??곸긽 ?뚮옯??留뚮뱾湲?,
+      description: 'jjobtub MVP瑜?留뚮뱾硫??쇱슦?? 移대뱶 洹몃━?? ?곸꽭 ?섏씠吏瑜?援ъ꽦?⑸땲??',
+      category: '媛쒕컻',
       visibility: VideoVisibility.PUBLIC,
       status: VideoStatus.READY,
       durationSeconds: 1104,
@@ -367,7 +361,7 @@ async function main() {
         create: [
           {
             authorId: user.id,
-            body: '백엔드 연결까지 되면 진짜 서비스처럼 느껴질 것 같아요.',
+            body: '諛깆뿏???곌껐源뚯? ?섎㈃ 吏꾩쭨 ?쒕퉬?ㅼ쿂???먭뺨吏?寃?媛숈븘??',
             likeCount: 42,
           },
         ],
@@ -378,9 +372,9 @@ async function main() {
   await prisma.video.create({
     data: {
       channelId: channel.id,
-      title: 'HTTP Range 스트리밍 이해하기',
-      description: 'MP4 파일을 브라우저 video 태그에서 탐색 가능하게 제공하는 방식을 설명합니다.',
-      category: '개발',
+      title: 'HTTP Range ?ㅽ듃由щ컢 ?댄빐?섍린',
+      description: 'MP4 ?뚯씪??釉뚮씪?곗? video ?쒓렇?먯꽌 ?먯깋 媛?ν븯寃??쒓났?섎뒗 諛⑹떇???ㅻ챸?⑸땲??',
+      category: '媛쒕컻',
       visibility: VideoVisibility.PUBLIC,
       status: VideoStatus.READY,
       durationSeconds: 840,
@@ -408,7 +402,7 @@ main()
 Run:
 
 ```powershell
-npm --prefix apps/api run prisma:generate
+npm --prefix backend run prisma:generate
 ```
 
 Expected: Prisma client generation exits with code `0`.
@@ -418,17 +412,17 @@ Expected: Prisma client generation exits with code `0`.
 Run after local PostgreSQL database `jjobtub_dev` exists:
 
 ```powershell
-npm --prefix apps/api run prisma:migrate -- --name init
+npm --prefix backend run prisma:migrate -- --name init
 ```
 
-Expected: migration folder appears under `apps/api/prisma/migrations` and command exits with code `0`.
+Expected: migration folder appears under `backend/prisma/migrations` and command exits with code `0`.
 
 - [ ] **Step 5: Seed the database**
 
 Run:
 
 ```powershell
-npm --prefix apps/api run prisma:seed
+npm --prefix backend run prisma:seed
 ```
 
 Expected: terminal prints `Seeded channel ... and video ...`.
@@ -438,7 +432,7 @@ Expected: terminal prints `Seeded channel ... and video ...`.
 Run:
 
 ```powershell
-git add apps/api/prisma/schema.prisma apps/api/prisma/seed.ts apps/api/prisma/migrations
+git add backend/prisma/schema.prisma backend/prisma/seed.ts backend/prisma/migrations
 git commit -m "feat: add backend database schema"
 ```
 
@@ -449,14 +443,14 @@ Expected: commit succeeds with schema, seed, and migration files.
 ### Task 3: NestJS App And Prisma Module
 
 **Files:**
-- Create: `apps/api/src/main.ts`
-- Create: `apps/api/src/app.module.ts`
-- Create: `apps/api/src/prisma/prisma.module.ts`
-- Create: `apps/api/src/prisma/prisma.service.ts`
+- Create: `backend/src/main.ts`
+- Create: `backend/src/app.module.ts`
+- Create: `backend/src/prisma/prisma.module.ts`
+- Create: `backend/src/prisma/prisma.service.ts`
 
 - [ ] **Step 1: Write the app bootstrap**
 
-Create `apps/api/src/main.ts`:
+Create `backend/src/main.ts`:
 
 ```ts
 import { ValidationPipe } from '@nestjs/common';
@@ -489,7 +483,7 @@ bootstrap();
 
 - [ ] **Step 2: Write the root module**
 
-Create `apps/api/src/app.module.ts`:
+Create `backend/src/app.module.ts`:
 
 ```ts
 import { Module } from '@nestjs/common';
@@ -513,7 +507,7 @@ export class AppModule {}
 
 - [ ] **Step 3: Write Prisma service**
 
-Create `apps/api/src/prisma/prisma.service.ts`:
+Create `backend/src/prisma/prisma.service.ts`:
 
 ```ts
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
@@ -531,7 +525,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 }
 ```
 
-Create `apps/api/src/prisma/prisma.module.ts`:
+Create `backend/src/prisma/prisma.module.ts`:
 
 ```ts
 import { Global, Module } from '@nestjs/common';
@@ -550,7 +544,7 @@ export class PrismaModule {}
 Run:
 
 ```powershell
-npm --prefix apps/api run build
+npm --prefix backend run build
 ```
 
 Expected: build exits with code `0`.
@@ -560,7 +554,7 @@ Expected: build exits with code `0`.
 Run:
 
 ```powershell
-git add apps/api/src/main.ts apps/api/src/app.module.ts apps/api/src/prisma
+git add backend/src/main.ts backend/src/app.module.ts backend/src/prisma
 git commit -m "feat: add api application shell"
 ```
 
@@ -571,17 +565,17 @@ Expected: commit succeeds with NestJS bootstrap and Prisma module.
 ### Task 4: Video Metadata API
 
 **Files:**
-- Create: `apps/api/src/videos/videos.module.ts`
-- Create: `apps/api/src/videos/videos.service.ts`
-- Create: `apps/api/src/videos/videos.controller.ts`
-- Create: `apps/api/src/videos/dto/create-video.dto.ts`
-- Create: `apps/api/src/videos/video-response.ts`
-- Create: `apps/api/test/jest-e2e.json`
-- Create: `apps/api/test/videos.e2e-spec.ts`
+- Create: `backend/src/videos/videos.module.ts`
+- Create: `backend/src/videos/videos.service.ts`
+- Create: `backend/src/videos/videos.controller.ts`
+- Create: `backend/src/videos/dto/create-video.dto.ts`
+- Create: `backend/src/videos/video-response.ts`
+- Create: `backend/test/jest-e2e.json`
+- Create: `backend/test/videos.e2e-spec.ts`
 
 - [ ] **Step 1: Write failing e2e tests**
 
-Create `apps/api/test/jest-e2e.json`:
+Create `backend/test/jest-e2e.json`:
 
 ```json
 {
@@ -595,7 +589,7 @@ Create `apps/api/test/jest-e2e.json`:
 }
 ```
 
-Create `apps/api/test/videos.e2e-spec.ts`:
+Create `backend/test/videos.e2e-spec.ts`:
 
 ```ts
 import { INestApplication } from '@nestjs/common';
@@ -639,7 +633,7 @@ describe('Videos API', () => {
         channelId,
         title: 'First Video',
         description: 'The first test video',
-        category: '개발',
+        category: '媛쒕컻',
         status: 'READY',
         durationSeconds: 123,
         viewCount: 7,
@@ -658,7 +652,7 @@ describe('Videos API', () => {
     expect(response.body.items).toHaveLength(1);
     expect(response.body.items[0]).toMatchObject({
       title: 'First Video',
-      category: '개발',
+      category: '媛쒕컻',
       views: 7,
       channel: { id: channelId, name: 'Test Channel' },
     });
@@ -686,7 +680,7 @@ describe('Videos API', () => {
       .send({
         title: 'New Draft',
         description: 'Draft description',
-        category: '음악',
+        category: '?뚯븙',
         channelId,
         visibility: 'PUBLIC',
       })
@@ -705,14 +699,14 @@ describe('Videos API', () => {
 Run:
 
 ```powershell
-npm --prefix apps/api run test:e2e -- --runInBand test/videos.e2e-spec.ts
+npm --prefix backend run test:e2e -- --runInBand test/videos.e2e-spec.ts
 ```
 
 Expected: FAIL because `VideosModule` and routes do not exist yet.
 
 - [ ] **Step 3: Implement video DTO and response mappers**
 
-Create `apps/api/src/videos/dto/create-video.dto.ts`:
+Create `backend/src/videos/dto/create-video.dto.ts`:
 
 ```ts
 import { VideoVisibility } from '@prisma/client';
@@ -742,7 +736,7 @@ export class CreateVideoDto {
 }
 ```
 
-Create `apps/api/src/videos/video-response.ts`:
+Create `backend/src/videos/video-response.ts`:
 
 ```ts
 import { Channel, Video } from '@prisma/client';
@@ -788,7 +782,7 @@ export function toVideoDetail(video: VideoWithChannel) {
 
 - [ ] **Step 4: Implement video service and controller**
 
-Create `apps/api/src/videos/videos.service.ts`:
+Create `backend/src/videos/videos.service.ts`:
 
 ```ts
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -860,7 +854,7 @@ export class VideosService {
 }
 ```
 
-Create `apps/api/src/videos/videos.controller.ts`:
+Create `backend/src/videos/videos.controller.ts`:
 
 ```ts
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
@@ -898,7 +892,7 @@ export class VideosController {
 }
 ```
 
-Create `apps/api/src/videos/videos.module.ts`:
+Create `backend/src/videos/videos.module.ts`:
 
 ```ts
 import { Module } from '@nestjs/common';
@@ -918,7 +912,7 @@ export class VideosModule {}
 Run:
 
 ```powershell
-npm --prefix apps/api run test:e2e -- --runInBand test/videos.e2e-spec.ts
+npm --prefix backend run test:e2e -- --runInBand test/videos.e2e-spec.ts
 ```
 
 Expected: PASS with 3 tests.
@@ -928,7 +922,7 @@ Expected: PASS with 3 tests.
 Run:
 
 ```powershell
-git add apps/api/src/videos apps/api/test/jest-e2e.json apps/api/test/videos.e2e-spec.ts
+git add backend/src/videos backend/test/jest-e2e.json backend/test/videos.e2e-spec.ts
 git commit -m "feat: add video metadata api"
 ```
 
@@ -939,19 +933,19 @@ Expected: commit succeeds with video API files.
 ### Task 5: Channels And Comments APIs
 
 **Files:**
-- Create: `apps/api/src/channels/channels.module.ts`
-- Create: `apps/api/src/channels/channels.service.ts`
-- Create: `apps/api/src/channels/channels.controller.ts`
-- Create: `apps/api/src/comments/comments.module.ts`
-- Create: `apps/api/src/comments/comments.service.ts`
-- Create: `apps/api/src/comments/comments.controller.ts`
-- Create: `apps/api/src/comments/dto/create-comment.dto.ts`
-- Create: `apps/api/test/channels.e2e-spec.ts`
-- Create: `apps/api/test/comments.e2e-spec.ts`
+- Create: `backend/src/channels/channels.module.ts`
+- Create: `backend/src/channels/channels.service.ts`
+- Create: `backend/src/channels/channels.controller.ts`
+- Create: `backend/src/comments/comments.module.ts`
+- Create: `backend/src/comments/comments.service.ts`
+- Create: `backend/src/comments/comments.controller.ts`
+- Create: `backend/src/comments/dto/create-comment.dto.ts`
+- Create: `backend/test/channels.e2e-spec.ts`
+- Create: `backend/test/comments.e2e-spec.ts`
 
 - [ ] **Step 1: Write failing channels e2e test**
 
-Create `apps/api/test/channels.e2e-spec.ts`:
+Create `backend/test/channels.e2e-spec.ts`:
 
 ```ts
 import { INestApplication } from '@nestjs/common';
@@ -995,7 +989,7 @@ describe('Channels API', () => {
         channelId,
         title: 'Channel Video',
         description: 'Visible on channel page',
-        category: '개발',
+        category: '媛쒕컻',
         status: 'READY',
         visibility: 'PUBLIC',
         publishedAt: new Date('2026-06-26T01:00:00.000Z'),
@@ -1032,7 +1026,7 @@ describe('Channels API', () => {
 
 - [ ] **Step 2: Implement channels API**
 
-Create `apps/api/src/channels/channels.service.ts`:
+Create `backend/src/channels/channels.service.ts`:
 
 ```ts
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -1076,7 +1070,7 @@ export class ChannelsService {
 }
 ```
 
-Create `apps/api/src/channels/channels.controller.ts`:
+Create `backend/src/channels/channels.controller.ts`:
 
 ```ts
 import { Controller, Get, Param } from '@nestjs/common';
@@ -1098,7 +1092,7 @@ export class ChannelsController {
 }
 ```
 
-Create `apps/api/src/channels/channels.module.ts`:
+Create `backend/src/channels/channels.module.ts`:
 
 ```ts
 import { Module } from '@nestjs/common';
@@ -1114,7 +1108,7 @@ export class ChannelsModule {}
 
 - [ ] **Step 3: Write failing comments e2e test**
 
-Create `apps/api/test/comments.e2e-spec.ts`:
+Create `backend/test/comments.e2e-spec.ts`:
 
 ```ts
 import { INestApplication } from '@nestjs/common';
@@ -1158,7 +1152,7 @@ describe('Comments API', () => {
         channelId: channel.id,
         title: 'Comment Video',
         description: 'Commentable video',
-        category: '개발',
+        category: '媛쒕컻',
         status: 'READY',
         visibility: 'PUBLIC',
       },
@@ -1204,7 +1198,7 @@ describe('Comments API', () => {
 
 - [ ] **Step 4: Implement comments API**
 
-Create `apps/api/src/comments/dto/create-comment.dto.ts`:
+Create `backend/src/comments/dto/create-comment.dto.ts`:
 
 ```ts
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
@@ -1221,7 +1215,7 @@ export class CreateCommentDto {
 }
 ```
 
-Create `apps/api/src/comments/comments.service.ts`:
+Create `backend/src/comments/comments.service.ts`:
 
 ```ts
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -1289,7 +1283,7 @@ export class CommentsService {
 }
 ```
 
-Create `apps/api/src/comments/comments.controller.ts`:
+Create `backend/src/comments/comments.controller.ts`:
 
 ```ts
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
@@ -1312,7 +1306,7 @@ export class CommentsController {
 }
 ```
 
-Create `apps/api/src/comments/comments.module.ts`:
+Create `backend/src/comments/comments.module.ts`:
 
 ```ts
 import { Module } from '@nestjs/common';
@@ -1331,7 +1325,7 @@ export class CommentsModule {}
 Run:
 
 ```powershell
-npm --prefix apps/api run test:e2e -- --runInBand test/channels.e2e-spec.ts test/comments.e2e-spec.ts
+npm --prefix backend run test:e2e -- --runInBand test/channels.e2e-spec.ts test/comments.e2e-spec.ts
 ```
 
 Expected: PASS with 4 tests.
@@ -1341,8 +1335,8 @@ Expected: PASS with 4 tests.
 Run:
 
 ```powershell
-npm --prefix apps/api run build
-npm --prefix apps/api run test:e2e -- --runInBand
+npm --prefix backend run build
+npm --prefix backend run test:e2e -- --runInBand
 ```
 
 Expected: build exits with code `0`, e2e test suite passes.
@@ -1352,7 +1346,7 @@ Expected: build exits with code `0`, e2e test suite passes.
 Run:
 
 ```powershell
-git add apps/api/src/channels apps/api/src/comments apps/api/test/channels.e2e-spec.ts apps/api/test/comments.e2e-spec.ts
+git add backend/src/channels backend/src/comments backend/test/channels.e2e-spec.ts backend/test/comments.e2e-spec.ts
 git commit -m "feat: add channel and comment APIs"
 ```
 
@@ -1365,3 +1359,5 @@ Expected: commit succeeds with channels and comments API files.
 - Spec coverage: This plan covers backend scaffold, PostgreSQL/Prisma schema, seed data, and metadata endpoints for videos, channels, and comments. Upload, local file storage, thumbnail serving, and HTTP Range streaming are intentionally left for the next implementation plan because they are a separate storage/streaming subsystem.
 - Placeholder scan: No placeholder work items remain; each code-producing step includes concrete file contents or exact commands.
 - Type consistency: The plan consistently uses Prisma `VideoStatus`, `VideoVisibility`, channel/video/comment IDs as strings, and response fields matching the existing frontend API design direction.
+
+
