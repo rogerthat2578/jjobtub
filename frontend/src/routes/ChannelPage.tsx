@@ -1,18 +1,37 @@
 import { Bell } from "lucide-react";
-import { useParams, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Navigate, useParams } from "react-router-dom";
 import { VideoGrid } from "../components/VideoGrid";
-import { channels } from "../data/channels";
-import { videos } from "../data/videos";
+import { fetchChannel, fetchChannelVideos, type VideoListResult } from "../services/apiClient";
+import type { Channel } from "../types/channel";
 
 export function ChannelPage() {
   const { channelId } = useParams();
-  const channel = channels.find((item) => item.id === channelId);
+  const [channel, setChannel] = useState<Channel | null>(null);
+  const [videos, setVideos] = useState<VideoListResult>({ videos: [], channelsById: {} });
+  const [notFound, setNotFound] = useState(false);
 
-  if (!channel) {
+  useEffect(() => {
+    if (!channelId) {
+      setNotFound(true);
+      return;
+    }
+
+    Promise.all([fetchChannel(channelId), fetchChannelVideos(channelId)])
+      .then(([channelResult, videoResult]) => {
+        setChannel(channelResult);
+        setVideos(videoResult);
+      })
+      .catch(() => setNotFound(true));
+  }, [channelId]);
+
+  if (notFound) {
     return <Navigate to="/" replace />;
   }
 
-  const channelVideos = videos.filter((video) => video.channelId === channel.id);
+  if (!channel) {
+    return <p className="empty-state">채널을 불러오는 중입니다.</p>;
+  }
 
   return (
     <div className="page-stack">
@@ -23,7 +42,7 @@ export function ChannelPage() {
           <div>
             <h1>{channel.name}</h1>
             <p>
-              {channel.handle} · 구독자 {channel.subscribers}명 · 영상 {channelVideos.length}개
+              {channel.handle} · 구독자 {channel.subscribers}명 · 영상 {videos.videos.length}개
             </p>
             <p>{channel.description}</p>
           </div>
@@ -33,7 +52,7 @@ export function ChannelPage() {
           </button>
         </div>
       </section>
-      <VideoGrid videos={channelVideos} />
+      <VideoGrid videos={videos.videos} channelsById={videos.channelsById} />
     </div>
   );
 }

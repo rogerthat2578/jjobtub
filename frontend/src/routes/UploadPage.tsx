@@ -1,32 +1,64 @@
-import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { UploadCloud } from "lucide-react";
-import { videos } from "../data/videos";
+import { FormEvent, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { createVideo, fetchVideos, uploadVideoFile } from "../services/apiClient";
 
 export function UploadPage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("개발");
-  const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [channelId, setChannelId] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    fetchVideos()
+      .then((result) => {
+        const firstVideo = result.videos[0];
+        if (firstVideo) {
+          setChannelId(firstVideo.channelId);
+        }
+      })
+      .catch(() => setError("업로드에 사용할 채널을 불러오지 못했습니다."));
+  }, []);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!title.trim() || !description.trim()) {
-      setError("제목과 설명을 입력해 주세요.");
+    if (!title.trim() || !description.trim() || !file) {
+      setError("제목, 설명, MP4 파일을 모두 입력해 주세요.");
+      return;
+    }
+    if (!channelId) {
+      setError("업로드할 채널이 없습니다. seed 데이터를 먼저 확인해 주세요.");
       return;
     }
 
-    const fallbackId = videos[0]?.id ?? "";
-    navigate(`/watch/${fallbackId}`);
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      const created = await createVideo({
+        title,
+        description,
+        category,
+        channelId,
+      });
+      await uploadVideoFile(created.id, file);
+      navigate(`/watch/${created.id}`);
+    } catch {
+      setError("영상 업로드에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
     <div className="upload-page">
       <div className="page-heading">
         <h1>영상 업로드</h1>
-        <p>새 영상의 기본 정보를 입력하세요.</p>
+        <p>영상 정보와 MP4 파일을 선택해 업로드하세요.</p>
       </div>
 
       <form className="upload-form" onSubmit={handleSubmit}>
@@ -54,23 +86,17 @@ export function UploadPage() {
           </select>
         </label>
         <label>
-          <span>썸네일 URL</span>
+          <span>MP4 파일</span>
           <input
-            value={thumbnailUrl}
-            onChange={(event) => setThumbnailUrl(event.target.value)}
-            placeholder="https://..."
-            type="url"
+            accept="video/mp4"
+            type="file"
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
         </label>
-        {thumbnailUrl && (
-          <div className="upload-preview">
-            <img src={thumbnailUrl} alt="썸네일 미리보기" />
-          </div>
-        )}
         {error && <p className="form-error">{error}</p>}
-        <button className="primary-button" type="submit">
+        <button className="primary-button" type="submit" disabled={isSubmitting}>
           <UploadCloud size={18} />
-          등록 흐름 확인
+          {isSubmitting ? "업로드 중" : "업로드"}
         </button>
       </form>
     </div>

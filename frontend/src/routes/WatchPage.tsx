@@ -1,22 +1,48 @@
 import { Bell, Share2, ThumbsUp } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { CommentList } from "../components/CommentList";
 import { VideoCard } from "../components/VideoCard";
-import { channels } from "../data/channels";
-import { comments } from "../data/comments";
-import { videos } from "../data/videos";
+import { fetchComments, fetchVideo, fetchVideos, type VideoListResult } from "../services/apiClient";
+import type { Channel } from "../types/channel";
+import type { Comment } from "../types/comment";
+import type { Video } from "../types/video";
 
 export function WatchPage() {
   const { videoId } = useParams();
-  const video = videos.find((item) => item.id === videoId);
+  const [video, setVideo] = useState<Video | null>(null);
+  const [channel, setChannel] = useState<Channel | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [recommended, setRecommended] = useState<VideoListResult>({ videos: [], channelsById: {} });
+  const [notFound, setNotFound] = useState(false);
 
-  if (!video) {
+  useEffect(() => {
+    if (!videoId) {
+      setNotFound(true);
+      return;
+    }
+
+    Promise.all([fetchVideo(videoId), fetchComments(videoId), fetchVideos()])
+      .then(([videoResult, commentResult, recommendedResult]) => {
+        setVideo(videoResult.video);
+        setChannel(videoResult.channel);
+        setComments(commentResult);
+        setRecommended({
+          ...recommendedResult,
+          videos: recommendedResult.videos.filter((item) => item.id !== videoId).slice(0, 5),
+        });
+        setNotFound(false);
+      })
+      .catch(() => setNotFound(true));
+  }, [videoId]);
+
+  if (notFound) {
     return <Navigate to="/" replace />;
   }
 
-  const channel = channels.find((item) => item.id === video.channelId)!;
-  const videoComments = comments.filter((comment) => comment.videoId === video.id);
-  const recommendedVideos = videos.filter((item) => item.id !== video.id).slice(0, 5);
+  if (!video || !channel) {
+    return <p className="empty-state">영상을 불러오는 중입니다.</p>;
+  }
 
   return (
     <div className="watch-layout">
@@ -59,16 +85,20 @@ export function WatchPage() {
         </section>
 
         <section className="comments-section">
-          <h2>댓글 {videoComments.length}개</h2>
-          <CommentList comments={videoComments} />
+          <h2>댓글 {comments.length}개</h2>
+          <CommentList comments={comments} />
         </section>
       </section>
 
       <aside className="recommendations" aria-label="추천 영상">
-        {recommendedVideos.map((item) => {
-          const itemChannel = channels.find((channelItem) => channelItem.id === item.channelId)!;
-          return <VideoCard key={item.id} video={item} channel={itemChannel} orientation="list" />;
-        })}
+        {recommended.videos.map((item) => (
+          <VideoCard
+            key={item.id}
+            video={item}
+            channel={recommended.channelsById[item.channelId]}
+            orientation="list"
+          />
+        ))}
       </aside>
     </div>
   );
