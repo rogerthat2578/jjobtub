@@ -3,10 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
+    "prebuild": "prisma generate",
     "build": "nest build",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "test": "jest",
+    "pretest:e2e": "prisma generate",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
