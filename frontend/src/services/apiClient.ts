@@ -12,6 +12,7 @@ type ApiChannel = {
   avatarUrl?: string | null;
   bannerUrl?: string | null;
   subscriberCount?: number;
+  subscribedByMe?: boolean;
 };
 
 type ApiVideoListItem = {
@@ -28,6 +29,7 @@ type ApiVideoListItem = {
 type ApiVideoDetail = ApiVideoListItem & {
   description: string;
   likeCount: number;
+  likedByMe?: boolean;
   streamUrl: string;
   channel: ApiChannel;
   visibility?: string;
@@ -157,6 +159,14 @@ export async function incrementVideoView(videoId: string) {
   return request<{ views: number }>(`/videos/${videoId}/view`, { method: "POST" });
 }
 
+export async function toggleVideoLike(videoId: string) {
+  return request<{ liked: boolean; likes: number }>(`/videos/${videoId}/like`, { method: "POST" });
+}
+
+export async function toggleChannelSubscription(channelId: string) {
+  return request<{ subscribed: boolean; subscribers: number }>(`/channels/${channelId}/subscribe`, { method: "POST" });
+}
+
 export async function updateVideo(
   videoId: string,
   input: { title: string; description: string; category: string; visibility?: string },
@@ -215,6 +225,8 @@ function mapVideo(item: ApiVideoListItem | ApiVideoDetail): Video {
     duration: formatDuration(item.durationSeconds),
     category: item.category,
     likes: "likeCount" in item ? item.likeCount.toLocaleString() : "0",
+    likesCount: "likeCount" in item ? item.likeCount : undefined,
+    likedByMe: "likedByMe" in item ? item.likedByMe : undefined,
     viewsCount: item.views,
     visibility: "visibility" in item ? item.visibility : undefined,
   };
@@ -228,7 +240,9 @@ function mapChannel(channel: ApiChannel): Channel {
     avatarUrl: channel.avatarUrl ?? "",
     bannerUrl: channel.bannerUrl ?? "",
     subscribers: (channel.subscriberCount ?? 0).toLocaleString(),
+    subscribersCount: channel.subscriberCount,
     description: channel.description ?? "",
+    subscribedByMe: channel.subscribedByMe,
   };
 }
 

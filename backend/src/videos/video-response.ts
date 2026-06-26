@@ -1,6 +1,10 @@
 import { Channel, Video } from '@prisma/client';
 
 type VideoWithChannel = Video & { channel: Channel };
+type VideoViewerState = {
+  likedByMe?: boolean;
+  subscribedByMe?: boolean;
+};
 
 export function toVideoListItem(video: VideoWithChannel) {
   return {
@@ -19,13 +23,14 @@ export function toVideoListItem(video: VideoWithChannel) {
   };
 }
 
-export function toVideoDetail(video: VideoWithChannel) {
+export function toVideoDetail(video: VideoWithChannel, viewerState: VideoViewerState = {}) {
   return {
     ...toVideoListItem(video),
     description: video.description,
     visibility: video.visibility,
     status: video.status,
     likeCount: video.likeCount,
+    likedByMe: Boolean(viewerState.likedByMe),
     streamUrl: `/api/videos/${video.id}/stream`,
     channel: {
       id: video.channel.id,
@@ -34,6 +39,7 @@ export function toVideoDetail(video: VideoWithChannel) {
       avatarUrl: video.channel.avatarUrl,
       bannerUrl: video.channel.bannerUrl,
       subscriberCount: video.channel.subscriberCount,
+      subscribedByMe: Boolean(viewerState.subscribedByMe),
     },
   };
 }

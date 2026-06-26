@@ -225,6 +225,18 @@ img {
   background: var(--surface);
 }
 
+.pill-button:disabled,
+.subscribe-button:disabled,
+.primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.active-pill {
+  color: #ffffff;
+  background: var(--ink);
+}
+
 .app-body {
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
@@ -557,6 +569,11 @@ img {
   border-radius: 999px;
   color: #ffffff;
   background: var(--ink);
+}
+
+.subscribe-button-active {
+  color: var(--ink);
+  background: var(--surface-strong);
 }
 
 .description-box {

@@ -35,18 +35,40 @@ const video = {
 
 describe('Channels API', () => {
   let app: INestApplication;
+  const prisma = {
+    channel: {
+      findUnique: jest.fn().mockResolvedValue(channel),
+      update: jest.fn().mockResolvedValue({ ...channel, subscriberCount: 23 }),
+    },
+    video: {
+      findMany: jest.fn().mockResolvedValue([video]),
+    },
+    session: {
+      findUnique: jest.fn().mockResolvedValue({
+        id: 'session-1',
+        userId: 'user-2',
+        token: 'session-token',
+        expiresAt: new Date('2026-06-27T00:00:00.000Z'),
+        createdAt: new Date('2026-06-26T00:00:00.000Z'),
+        user: {
+          id: 'user-2',
+          email: 'viewer@jjobtub.local',
+          displayName: 'Viewer',
+          avatarUrl: null,
+        },
+      }),
+    },
+    channelSubscription: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue({ id: 'subscription-1', channelId: 'channel-1', userId: 'user-2' }),
+      delete: jest.fn().mockResolvedValue({ id: 'subscription-1', channelId: 'channel-1', userId: 'user-2' }),
+    },
+  };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
-      .useValue({
-        channel: {
-          findUnique: jest.fn().mockResolvedValue(channel),
-        },
-        video: {
-          findMany: jest.fn().mockResolvedValue([video]),
-        },
-      })
+      .useValue(prisma)
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -76,6 +98,47 @@ describe('Channels API', () => {
     expect(response.body.items[0]).toMatchObject({
       title: 'Channel Video',
       channel: { id: channel.id, name: 'Channel API' },
+    });
+  });
+
+  it('subscribes the logged-in user to a channel', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/channels/channel-1/subscribe')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(201);
+
+    expect(response.body).toEqual({ subscribed: true, subscribers: 23 });
+    expect(prisma.channelSubscription.create).toHaveBeenCalledWith({
+      data: { channelId: 'channel-1', userId: 'user-2' },
+    });
+    expect(prisma.channel.update).toHaveBeenCalledWith({
+      where: { id: 'channel-1' },
+      data: { subscriberCount: { increment: 1 } },
+      select: { subscriberCount: true },
+    });
+  });
+
+  it('unsubscribes the logged-in user when already subscribed', async () => {
+    prisma.channelSubscription.findUnique.mockResolvedValueOnce({
+      id: 'subscription-1',
+      channelId: 'channel-1',
+      userId: 'user-2',
+    });
+    prisma.channel.update.mockResolvedValueOnce({ ...channel, subscriberCount: 21 });
+
+    const response = await request(app.getHttpServer())
+      .post('/api/channels/channel-1/subscribe')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(201);
+
+    expect(response.body).toEqual({ subscribed: false, subscribers: 21 });
+    expect(prisma.channelSubscription.delete).toHaveBeenCalledWith({
+      where: { channelId_userId: { channelId: 'channel-1', userId: 'user-2' } },
+    });
+    expect(prisma.channel.update).toHaveBeenCalledWith({
+      where: { id: 'channel-1' },
+      data: { subscriberCount: { decrement: 1 } },
+      select: { subscriberCount: true },
     });
   });
 });

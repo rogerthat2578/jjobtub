@@ -11,6 +11,8 @@ import {
   fetchVideo,
   fetchVideos,
   incrementVideoView,
+  toggleChannelSubscription,
+  toggleVideoLike,
   updateVideo,
   type VideoListResult,
 } from "../services/apiClient";
@@ -36,6 +38,9 @@ export function WatchPage() {
   const [editCategory, setEditCategory] = useState("개발");
   const [managementError, setManagementError] = useState("");
   const [isManagingVideo, setIsManagingVideo] = useState(false);
+  const [reactionError, setReactionError] = useState("");
+  const [isLikeBusy, setIsLikeBusy] = useState(false);
+  const [isSubscriptionBusy, setIsSubscriptionBusy] = useState(false);
 
   useEffect(() => {
     if (!videoId) {
@@ -130,6 +135,64 @@ export function WatchPage() {
     }
   }
 
+  async function handleLike() {
+    if (!videoId || !video || isLikeBusy) {
+      return;
+    }
+    if (!user) {
+      setReactionError("로그인 후 좋아요를 누를 수 있습니다.");
+      return;
+    }
+
+    setIsLikeBusy(true);
+    setReactionError("");
+
+    try {
+      const result = await toggleVideoLike(videoId);
+      setVideo({
+        ...video,
+        likedByMe: result.liked,
+        likesCount: result.likes,
+        likes: result.likes.toLocaleString(),
+      });
+    } catch {
+      setReactionError("좋아요 상태를 변경하지 못했습니다.");
+    } finally {
+      setIsLikeBusy(false);
+    }
+  }
+
+  async function handleSubscription() {
+    if (!channel || isSubscriptionBusy) {
+      return;
+    }
+    if (!user) {
+      setReactionError("로그인 후 구독할 수 있습니다.");
+      return;
+    }
+    if (user.channelId === channel.id) {
+      setReactionError("내 채널은 구독할 수 없습니다.");
+      return;
+    }
+
+    setIsSubscriptionBusy(true);
+    setReactionError("");
+
+    try {
+      const result = await toggleChannelSubscription(channel.id);
+      setChannel({
+        ...channel,
+        subscribedByMe: result.subscribed,
+        subscribersCount: result.subscribers,
+        subscribers: result.subscribers.toLocaleString(),
+      });
+    } catch {
+      setReactionError("구독 상태를 변경하지 못했습니다.");
+    } finally {
+      setIsSubscriptionBusy(false);
+    }
+  }
+
   async function handleCommentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!videoId || isSubmittingComment) {
@@ -182,11 +245,21 @@ export function WatchPage() {
   }
 
   const canManageVideo = Boolean(user?.channelId && user.channelId === video.channelId);
+  const isOwnChannel = Boolean(user?.channelId && user.channelId === channel.id);
 
   return (
     <div className="watch-layout">
       <section className="watch-main">
-        <video className="player" controls poster={video.thumbnailUrl} src={video.videoUrl} onPlay={handlePlaybackStarted} />
+        <video
+          className="player"
+          controls
+          controlsList="nodownload"
+          disablePictureInPicture
+          poster={video.thumbnailUrl}
+          src={video.videoUrl}
+          onContextMenu={(event) => event.preventDefault()}
+          onPlay={handlePlaybackStarted}
+        />
         {isEditing ? (
           <form className="video-edit-form" onSubmit={handleEditSubmit}>
             <label>
@@ -242,7 +315,13 @@ export function WatchPage() {
                 </button>
               </>
             )}
-            <button className="pill-button" type="button">
+            <button
+              className={`pill-button ${video.likedByMe ? "active-pill" : ""}`}
+              type="button"
+              onClick={handleLike}
+              disabled={isLikeBusy}
+              aria-pressed={Boolean(video.likedByMe)}
+            >
               <ThumbsUp size={17} />
               {video.likes}
             </button>
@@ -261,9 +340,15 @@ export function WatchPage() {
               <small>구독자 {channel.subscribers}명</small>
             </span>
           </Link>
-          <button className="subscribe-button" type="button">
+          <button
+            className={`subscribe-button ${channel.subscribedByMe ? "subscribe-button-active" : ""}`}
+            type="button"
+            onClick={handleSubscription}
+            disabled={isSubscriptionBusy || isOwnChannel}
+            aria-pressed={Boolean(channel.subscribedByMe)}
+          >
             <Bell size={17} />
-            구독
+            {channel.subscribedByMe ? "구독 중" : "구독"}
           </button>
         </div>
 
@@ -271,6 +356,7 @@ export function WatchPage() {
           <strong>{video.category}</strong>
           <p>{video.description}</p>
           {managementError && !isEditing && <p className="form-error">{managementError}</p>}
+          {reactionError && <p className="form-error">{reactionError}</p>}
         </section>
 
         <section className="comments-section">

@@ -40,7 +40,7 @@ export class VideosService {
     };
   }
 
-  async getVideo(id: string) {
+  async getVideo(id: string, request?: Request) {
     const video = await this.prisma.video.findUnique({
       where: { id },
       include: { channel: true },
@@ -50,7 +50,24 @@ export class VideosService {
       throw new NotFoundException('Video not found');
     }
 
-    return toVideoDetail(video);
+    const user = request ? await this.authService.getCurrentUser(request) : null;
+    if (!user) {
+      return toVideoDetail(video);
+    }
+
+    const [like, subscription] = await Promise.all([
+      this.prisma.videoLike.findUnique({
+        where: { videoId_userId: { videoId: id, userId: user.id } },
+      }),
+      this.prisma.channelSubscription.findUnique({
+        where: { channelId_userId: { channelId: video.channelId, userId: user.id } },
+      }),
+    ]);
+
+    return toVideoDetail(video, {
+      likedByMe: Boolean(like),
+      subscribedByMe: Boolean(subscription),
+    });
   }
 
   async createVideo(dto: CreateVideoDto) {
@@ -125,6 +142,38 @@ export class VideosService {
     });
 
     return { views: video.viewCount };
+  }
+
+  async toggleLike(id: string, request: Request) {
+    const user = await this.authService.getCurrentUser(request);
+    if (!user) {
+      throw new UnauthorizedException('Login required');
+    }
+
+    await this.ensureVideoExists(id);
+    const key = { videoId_userId: { videoId: id, userId: user.id } };
+    const existingLike = await this.prisma.videoLike.findUnique({ where: key });
+    if (existingLike) {
+      await this.prisma.videoLike.delete({ where: key });
+      const video = await this.prisma.video.update({
+        where: { id },
+        data: { likeCount: { decrement: 1 } },
+        select: { likeCount: true },
+      });
+
+      return { liked: false, likes: video.likeCount };
+    }
+
+    await this.prisma.videoLike.create({
+      data: { videoId: id, userId: user.id },
+    });
+    const video = await this.prisma.video.update({
+      where: { id },
+      data: { likeCount: { increment: 1 } },
+      select: { likeCount: true },
+    });
+
+    return { liked: true, likes: video.likeCount };
   }
 
   async updateVideo(id: string, dto: UpdateVideoDto, request: Request) {
@@ -213,5 +262,12 @@ export class VideosService {
     }
 
     return video;
+  }
+
+  private async ensureVideoExists(id: string) {
+    const video = await this.prisma.video.findUnique({ where: { id } });
+    if (!video) {
+      throw new NotFoundException('Video not found');
+    }
   }
 }

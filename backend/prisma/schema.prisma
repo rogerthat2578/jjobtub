@@ -36,6 +36,8 @@ model User {
   channels    Channel[]
   comments    Comment[]
   sessions    Session[]
+  videoLikes  VideoLike[]
+  subscriptions ChannelSubscription[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -62,6 +64,7 @@ model Channel {
   bannerUrl       String?
   subscriberCount Int      @default(0)
   videos          Video[]
+  subscriptions   ChannelSubscription[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -81,8 +84,33 @@ model Video {
   publishedAt     DateTime?
   files           VideoFile[]
   comments        Comment[]
+  likes           VideoLike[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
+}
+
+model VideoLike {
+  id        String   @id @default(cuid())
+  videoId   String
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([videoId, userId])
+  @@index([userId])
+}
+
+model ChannelSubscription {
+  id        String   @id @default(cuid())
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([channelId, userId])
+  @@index([userId])
 }
 
 model VideoFile {

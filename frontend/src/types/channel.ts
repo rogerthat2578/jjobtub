@@ -5,5 +5,7 @@ export type Channel = {
   avatarUrl: string;
   bannerUrl: string;
   subscribers: string;
+  subscribersCount?: number;
   description: string;
+  subscribedByMe?: boolean;
 };

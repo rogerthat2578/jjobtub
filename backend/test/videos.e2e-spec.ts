@@ -43,6 +43,11 @@ describe('Videos API', () => {
       update: jest.fn().mockResolvedValue({ ...video, viewCount: 8 }),
       delete: jest.fn().mockResolvedValue(video),
     },
+    videoLike: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue({ id: 'like-1', videoId: 'video-1', userId: 'user-1' }),
+      delete: jest.fn().mockResolvedValue({ id: 'like-1', videoId: 'video-1', userId: 'user-1' }),
+    },
     channel: {
       findUnique: jest.fn().mockResolvedValue(channel),
     },
@@ -219,5 +224,44 @@ describe('Videos API', () => {
 
     expect(response.body).toEqual({ ok: true });
     expect(prisma.video.delete).toHaveBeenCalledWith({ where: { id: 'video-1' } });
+  });
+
+  it('likes a video for the logged-in user', async () => {
+    prisma.video.update.mockResolvedValueOnce({ ...video, likeCount: 4 });
+
+    const response = await request(app.getHttpServer())
+      .post('/api/videos/video-1/like')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(201);
+
+    expect(response.body).toEqual({ liked: true, likes: 4 });
+    expect(prisma.videoLike.create).toHaveBeenCalledWith({
+      data: { videoId: 'video-1', userId: 'user-1' },
+    });
+    expect(prisma.video.update).toHaveBeenCalledWith({
+      where: { id: 'video-1' },
+      data: { likeCount: { increment: 1 } },
+      select: { likeCount: true },
+    });
+  });
+
+  it('unlikes a video when the logged-in user already liked it', async () => {
+    prisma.videoLike.findUnique.mockResolvedValueOnce({ id: 'like-1', videoId: 'video-1', userId: 'user-1' });
+    prisma.video.update.mockResolvedValueOnce({ ...video, likeCount: 2 });
+
+    const response = await request(app.getHttpServer())
+      .post('/api/videos/video-1/like')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(201);
+
+    expect(response.body).toEqual({ liked: false, likes: 2 });
+    expect(prisma.videoLike.delete).toHaveBeenCalledWith({
+      where: { videoId_userId: { videoId: 'video-1', userId: 'user-1' } },
+    });
+    expect(prisma.video.update).toHaveBeenCalledWith({
+      where: { id: 'video-1' },
+      data: { likeCount: { decrement: 1 } },
+      select: { likeCount: true },
+    });
   });
 });

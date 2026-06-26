@@ -25,8 +25,8 @@ export class VideosController {
   }
 
   @Get(':id')
-  getVideo(@Param('id') id: string) {
-    return this.videosService.getVideo(id);
+  getVideo(@Param('id') id: string, @Req() request: Request) {
+    return this.videosService.getVideo(id, request);
   }
 
   @Post()
@@ -37,6 +37,11 @@ export class VideosController {
   @Post(':id/view')
   incrementView(@Param('id') id: string) {
     return this.videosService.incrementView(id);
+  }
+
+  @Post(':id/like')
+  toggleLike(@Param('id') id: string, @Req() request: Request) {
+    return this.videosService.toggleLike(id, request);
   }
 
   @Patch(':id')

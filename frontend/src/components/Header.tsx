@@ -1,5 +1,5 @@
 import { Menu, Search, Upload, UserCircle, Video } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
@@ -19,6 +19,22 @@ export function Header({ onMenuClick }: HeaderProps) {
   const [password, setPassword] = useState("password123");
   const [authError, setAuthError] = useState("");
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isAccountOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setIsAccountOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isAccountOpen]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -91,7 +107,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           <Upload size={18} />
           <span>업로드</span>
         </Link>
-        <div className="account-menu">
+        <div className="account-menu" ref={accountMenuRef}>
           <button
             className="icon-button"
             type="button"
