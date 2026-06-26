@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VideoVisibility {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}
+
+enum VideoStatus {
+  DRAFT
+  READY
+  PROCESSING
+  FAILED
+}
+
+enum VideoFileKind {
+  ORIGINAL
+  THUMBNAIL
+  HLS_MASTER
+  HLS_VARIANT
+}
+
+model User {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  displayName String
+  avatarUrl   String?
+  channels    Channel[]
+  comments    Comment[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Channel {
+  id              String   @id @default(cuid())
+  ownerId         String
+  owner           User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name            String
+  description     String
+  avatarUrl       String?
+  bannerUrl       String?
+  subscriberCount Int      @default(0)
+  videos          Video[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Video {
+  id              String          @id @default(cuid())
+  channelId       String
+  channel         Channel         @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  title           String
+  description     String
+  category        String
+  visibility      VideoVisibility @default(PUBLIC)
+  status          VideoStatus     @default(DRAFT)
+  durationSeconds Int             @default(0)
+  viewCount       Int             @default(0)
+  likeCount       Int             @default(0)
+  publishedAt     DateTime?
+  files           VideoFile[]
+  comments        Comment[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model VideoFile {
+  id          String        @id @default(cuid())
+  videoId     String
+  video       Video         @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  kind        VideoFileKind
+  storagePath String
+  mimeType    String
+  sizeBytes   BigInt
+  width       Int?
+  height      Int?
+  createdAt   DateTime      @default(now())
+
+  @@index([videoId, kind])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  videoId   String
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  likeCount Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
