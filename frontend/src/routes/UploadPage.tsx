@@ -1,29 +1,19 @@
 import { UploadCloud } from "lucide-react";
-import { DragEvent, FormEvent, useEffect, useState } from "react";
+import { DragEvent, FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createVideo, fetchVideos, uploadVideoFile } from "../services/apiClient";
+import { useAuth } from "../auth/AuthContext";
+import { createVideo, uploadVideoFile } from "../services/apiClient";
 
 export function UploadPage() {
   const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("개발");
   const [file, setFile] = useState<File | null>(null);
-  const [channelId, setChannelId] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-
-  useEffect(() => {
-    fetchVideos()
-      .then((result) => {
-        const firstVideo = result.videos[0];
-        if (firstVideo) {
-          setChannelId(firstVideo.channelId);
-        }
-      })
-      .catch(() => setError("업로드에 사용할 채널을 불러오지 못했습니다."));
-  }, []);
 
   function selectFile(nextFile: File | undefined | null) {
     if (!nextFile) {
@@ -65,8 +55,8 @@ export function UploadPage() {
       setError("제목, 설명, MP4 파일을 모두 입력해 주세요.");
       return;
     }
-    if (!channelId) {
-      setError("업로드할 채널이 없습니다. seed 데이터를 먼저 확인해 주세요.");
+    if (!user?.channelId) {
+      setError("로그인 후 내 채널로 업로드할 수 있습니다.");
       return;
     }
 
@@ -78,7 +68,7 @@ export function UploadPage() {
         title,
         description,
         category,
-        channelId,
+        channelId: user.channelId,
       });
       await uploadVideoFile(created.id, file);
       navigate(`/watch/${created.id}`);
@@ -136,7 +126,7 @@ export function UploadPage() {
           />
         </label>
         {error && <p className="form-error">{error}</p>}
-        <button className="primary-button" type="submit" disabled={isSubmitting}>
+        <button className="primary-button" type="submit" disabled={isSubmitting || isLoading || !user}>
           <UploadCloud size={18} />
           {isSubmitting ? "업로드 중" : "업로드"}
         </button>

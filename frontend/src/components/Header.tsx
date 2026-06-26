@@ -11,8 +11,10 @@ export function Header({ onMenuClick }: HeaderProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
-  const { user, login, logout, isLoading } = useAuth();
+  const { user, login, register, logout, isLoading } = useAuth();
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("creator@jjobtub.local");
   const [password, setPassword] = useState("password123");
   const [authError, setAuthError] = useState("");
@@ -24,16 +26,20 @@ export function Header({ onMenuClick }: HeaderProps) {
     navigate(trimmedQuery ? `/search?q=${encodeURIComponent(trimmedQuery)}` : "/");
   }
 
-  async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsAuthSubmitting(true);
     setAuthError("");
 
     try {
-      await login({ email, password });
+      if (authMode === "register") {
+        await register({ displayName, email, password });
+      } else {
+        await login({ email, password });
+      }
       setIsAccountOpen(false);
     } catch {
-      setAuthError("이메일 또는 비밀번호를 확인하세요.");
+      setAuthError(authMode === "register" ? "회원가입 정보를 확인하세요." : "이메일 또는 비밀번호를 확인하세요.");
     } finally {
       setIsAuthSubmitting(false);
     }
@@ -107,8 +113,19 @@ export function Header({ onMenuClick }: HeaderProps) {
                   </button>
                 </>
               ) : (
-                <form className="login-form" onSubmit={handleLoginSubmit}>
-                  <strong>{isLoading ? "계정 확인 중" : "로그인"}</strong>
+                <form className="login-form" onSubmit={handleAuthSubmit}>
+                  <strong>{isLoading ? "계정 확인 중" : authMode === "register" ? "회원가입" : "로그인"}</strong>
+                  {authMode === "register" && (
+                    <label>
+                      <span>이름</span>
+                      <input
+                        value={displayName}
+                        onChange={(event) => setDisplayName(event.target.value)}
+                        type="text"
+                        maxLength={60}
+                      />
+                    </label>
+                  )}
                   <label>
                     <span>이메일</span>
                     <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
@@ -123,7 +140,17 @@ export function Header({ onMenuClick }: HeaderProps) {
                   </label>
                   {authError && <p className="form-error">{authError}</p>}
                   <button className="primary-button" type="submit" disabled={isAuthSubmitting || isLoading}>
-                    {isAuthSubmitting ? "로그인 중" : "로그인"}
+                    {isAuthSubmitting ? "처리 중" : authMode === "register" ? "가입하기" : "로그인"}
+                  </button>
+                  <button
+                    className="text-button"
+                    type="button"
+                    onClick={() => {
+                      setAuthMode((mode) => (mode === "login" ? "register" : "login"));
+                      setAuthError("");
+                    }}
+                  >
+                    {authMode === "register" ? "이미 계정이 있어요" : "새 계정 만들기"}
                   </button>
                 </form>
               )}

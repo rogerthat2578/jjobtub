@@ -10,4 +10,6 @@ export type Video = {
   duration: string;
   category: string;
   likes: string;
+  viewsCount?: number;
+  visibility?: string;
 };

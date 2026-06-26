@@ -3,5 +3,5 @@ export type User = {
   email: string;
   displayName: string;
   avatarUrl: string;
+  channelId?: string;
 };
-

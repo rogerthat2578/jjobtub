@@ -40,9 +40,29 @@ describe('Videos API', () => {
       findMany: jest.fn().mockResolvedValue([video]),
       findUnique: jest.fn().mockResolvedValue(video),
       create: jest.fn().mockResolvedValue({ id: 'draft-1', status: 'DRAFT' }),
+      update: jest.fn().mockResolvedValue({ ...video, viewCount: 8 }),
+      delete: jest.fn().mockResolvedValue(video),
     },
     channel: {
       findUnique: jest.fn().mockResolvedValue(channel),
+    },
+    session: {
+      findUnique: jest.fn().mockResolvedValue({
+        id: 'session-1',
+        userId: 'user-1',
+        token: 'session-token',
+        expiresAt: new Date('2026-06-27T00:00:00.000Z'),
+        createdAt: new Date('2026-06-26T00:00:00.000Z'),
+        user: {
+          id: 'user-1',
+          email: 'creator@jjobtub.local',
+          displayName: 'Test Creator',
+          avatarUrl: null,
+        },
+      }),
+    },
+    videoFile: {
+      findMany: jest.fn().mockResolvedValue([{ storagePath: 'videos/video-1/original.mp4' }]),
     },
   };
 
@@ -141,5 +161,63 @@ describe('Videos API', () => {
         status: 'DRAFT',
       },
     });
+  });
+
+  it('increments a video view count', async () => {
+    const response = await request(app.getHttpServer()).post('/api/videos/video-1/view').expect(201);
+
+    expect(response.body).toEqual({ views: 8 });
+    expect(prisma.video.update).toHaveBeenCalledWith({
+      where: { id: 'video-1' },
+      data: { viewCount: { increment: 1 } },
+      select: { viewCount: true },
+    });
+  });
+
+  it('updates video metadata for the channel owner', async () => {
+    prisma.video.update.mockResolvedValueOnce({
+      ...video,
+      title: 'Updated Video',
+      description: 'Updated description',
+      category: '음악',
+    });
+
+    const response = await request(app.getHttpServer())
+      .patch('/api/videos/video-1')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .send({
+        title: 'Updated Video',
+        description: 'Updated description',
+        category: '음악',
+        visibility: 'PUBLIC',
+      })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: 'video-1',
+      title: 'Updated Video',
+      description: 'Updated description',
+      category: '음악',
+    });
+    expect(prisma.video.update).toHaveBeenCalledWith({
+      where: { id: 'video-1' },
+      data: {
+        title: 'Updated Video',
+        description: 'Updated description',
+        category: '음악',
+        visibility: 'PUBLIC',
+      },
+      include: { channel: true },
+    });
+  });
+
+  it('deletes a video for the channel owner', async () => {
+    const response = await request(app.getHttpServer())
+      .delete('/api/videos/video-1')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(200);
+
+    expect(response.body).toEqual({ ok: true });
+    expect(prisma.video.delete).toHaveBeenCalledWith({ where: { id: 'video-1' } });
   });
 });

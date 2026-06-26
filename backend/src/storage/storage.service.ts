@@ -1,7 +1,7 @@
 import { GoneException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createReadStream } from 'fs';
-import { mkdir, stat, writeFile } from 'fs/promises';
+import { mkdir, rm, stat, writeFile } from 'fs/promises';
 import { dirname, join, normalize, resolve } from 'path';
 
 @Injectable()
@@ -45,6 +45,10 @@ export class StorageService {
 
   createReadStream(storagePath: string, range: { start: number; end: number }) {
     return createReadStream(this.resolveStoragePath(storagePath), range);
+  }
+
+  async deleteFile(storagePath: string) {
+    await rm(this.resolveStoragePath(storagePath), { force: true });
   }
 
   private resolveStoragePath(storagePath: string) {

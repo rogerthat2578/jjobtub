@@ -30,6 +30,7 @@ type ApiVideoDetail = ApiVideoListItem & {
   likeCount: number;
   streamUrl: string;
   channel: ApiChannel;
+  visibility?: string;
 };
 
 type ApiComment = {
@@ -51,6 +52,7 @@ type ApiUser = {
   email: string;
   displayName: string;
   avatarUrl?: string | null;
+  channelId?: string;
 };
 
 export type VideoListResult = {
@@ -115,6 +117,15 @@ export async function login(input: { email: string; password: string }) {
   return mapUser(data.user);
 }
 
+export async function register(input: { email: string; password: string; displayName: string }) {
+  const data = await request<{ user: ApiUser }>("/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return mapUser(data.user);
+}
+
 export async function logout() {
   await request<{ ok: boolean }>("/auth/logout", { method: "POST" });
 }
@@ -140,6 +151,29 @@ export async function uploadVideoFile(videoId: string, file: File) {
     method: "POST",
     body: form,
   });
+}
+
+export async function incrementVideoView(videoId: string) {
+  return request<{ views: number }>(`/videos/${videoId}/view`, { method: "POST" });
+}
+
+export async function updateVideo(
+  videoId: string,
+  input: { title: string; description: string; category: string; visibility?: string },
+) {
+  const item = await request<ApiVideoDetail>(`/videos/${videoId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return {
+    video: mapVideo(item),
+    channel: mapChannel(item.channel),
+  };
+}
+
+export async function deleteVideo(videoId: string) {
+  await request<{ ok: boolean }>(`/videos/${videoId}`, { method: "DELETE" });
 }
 
 export function streamUrl(videoId: string) {
@@ -181,6 +215,8 @@ function mapVideo(item: ApiVideoListItem | ApiVideoDetail): Video {
     duration: formatDuration(item.durationSeconds),
     category: item.category,
     likes: "likeCount" in item ? item.likeCount.toLocaleString() : "0",
+    viewsCount: item.views,
+    visibility: "visibility" in item ? item.visibility : undefined,
   };
 }
 
@@ -216,6 +252,7 @@ function mapUser(user: ApiUser): User {
     email: user.email,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl ?? "",
+    channelId: user.channelId,
   };
 }
 

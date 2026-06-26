@@ -1,16 +1,26 @@
-import { Bell, Share2, ThumbsUp } from "lucide-react";
+import { Bell, Pencil, Share2, ThumbsUp, Trash2 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { CommentList } from "../components/CommentList";
 import { VideoCard } from "../components/VideoCard";
-import { createComment, fetchComments, fetchVideo, fetchVideos, type VideoListResult } from "../services/apiClient";
+import {
+  createComment,
+  deleteVideo,
+  fetchComments,
+  fetchVideo,
+  fetchVideos,
+  incrementVideoView,
+  updateVideo,
+  type VideoListResult,
+} from "../services/apiClient";
 import type { Channel } from "../types/channel";
 import type { Comment } from "../types/comment";
 import type { Video } from "../types/video";
 
 export function WatchPage() {
   const { videoId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [video, setVideo] = useState<Video | null>(null);
   const [channel, setChannel] = useState<Channel | null>(null);
@@ -20,6 +30,12 @@ export function WatchPage() {
   const [commentBody, setCommentBody] = useState("");
   const [commentError, setCommentError] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editCategory, setEditCategory] = useState("개발");
+  const [managementError, setManagementError] = useState("");
+  const [isManagingVideo, setIsManagingVideo] = useState(false);
 
   useEffect(() => {
     if (!videoId) {
@@ -31,6 +47,9 @@ export function WatchPage() {
       .then(([videoResult, commentResult, recommendedResult]) => {
         setVideo(videoResult.video);
         setChannel(videoResult.channel);
+        setEditTitle(videoResult.video.title);
+        setEditDescription(videoResult.video.description);
+        setEditCategory(videoResult.video.category);
         setComments(commentResult);
         setRecommended({
           ...recommendedResult,
@@ -40,6 +59,76 @@ export function WatchPage() {
       })
       .catch(() => setNotFound(true));
   }, [videoId]);
+
+  async function handlePlaybackStarted() {
+    if (!videoId || !video) {
+      return;
+    }
+
+    const storageKey = `jjobtub:viewed:${videoId}`;
+    if (sessionStorage.getItem(storageKey)) {
+      return;
+    }
+
+    sessionStorage.setItem(storageKey, "1");
+    try {
+      const result = await incrementVideoView(videoId);
+      setVideo((currentVideo) =>
+        currentVideo
+          ? {
+              ...currentVideo,
+              viewsCount: result.views,
+              views: `${result.views.toLocaleString()}회`,
+            }
+          : currentVideo,
+      );
+    } catch {
+      sessionStorage.removeItem(storageKey);
+    }
+  }
+
+  async function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!videoId || isManagingVideo) {
+      return;
+    }
+
+    setIsManagingVideo(true);
+    setManagementError("");
+
+    try {
+      const result = await updateVideo(videoId, {
+        title: editTitle,
+        description: editDescription,
+        category: editCategory,
+        visibility: video?.visibility ?? "PUBLIC",
+      });
+      setVideo(result.video);
+      setChannel(result.channel);
+      setIsEditing(false);
+    } catch {
+      setManagementError("영상 정보를 수정하지 못했습니다.");
+    } finally {
+      setIsManagingVideo(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!videoId || isManagingVideo || !window.confirm("이 영상을 삭제할까요?")) {
+      return;
+    }
+
+    setIsManagingVideo(true);
+    setManagementError("");
+
+    try {
+      await deleteVideo(videoId);
+      navigate("/");
+    } catch {
+      setManagementError("영상을 삭제하지 못했습니다.");
+      setIsManagingVideo(false);
+    }
+  }
 
   async function handleCommentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -92,16 +181,67 @@ export function WatchPage() {
     return <p className="empty-state">영상을 불러오는 중입니다.</p>;
   }
 
+  const canManageVideo = Boolean(user?.channelId && user.channelId === video.channelId);
+
   return (
     <div className="watch-layout">
       <section className="watch-main">
-        <video className="player" controls poster={video.thumbnailUrl} src={video.videoUrl} />
-        <h1 className="watch-title">{video.title}</h1>
+        <video className="player" controls poster={video.thumbnailUrl} src={video.videoUrl} onPlay={handlePlaybackStarted} />
+        {isEditing ? (
+          <form className="video-edit-form" onSubmit={handleEditSubmit}>
+            <label>
+              <span>제목</span>
+              <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} maxLength={120} />
+            </label>
+            <label>
+              <span>설명</span>
+              <textarea
+                value={editDescription}
+                onChange={(event) => setEditDescription(event.target.value)}
+                maxLength={5000}
+                rows={4}
+              />
+            </label>
+            <label>
+              <span>카테고리</span>
+              <select value={editCategory} onChange={(event) => setEditCategory(event.target.value)}>
+                <option>개발</option>
+                <option>브이로그</option>
+                <option>음악</option>
+                <option>생산성</option>
+                <option>라이프스타일</option>
+              </select>
+            </label>
+            <div className="video-management-row">
+              {managementError ? <p className="form-error">{managementError}</p> : <span />}
+              <button className="pill-button" type="button" onClick={() => setIsEditing(false)}>
+                취소
+              </button>
+              <button className="primary-button" type="submit" disabled={isManagingVideo}>
+                {isManagingVideo ? "저장 중" : "저장"}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <h1 className="watch-title">{video.title}</h1>
+        )}
         <div className="watch-meta-row">
           <span>
             {video.views} · {video.uploadedAt}
           </span>
           <div className="watch-actions">
+            {canManageVideo && !isEditing && (
+              <>
+                <button className="pill-button" type="button" onClick={() => setIsEditing(true)}>
+                  <Pencil size={17} />
+                  수정
+                </button>
+                <button className="pill-button danger-button" type="button" onClick={handleDelete} disabled={isManagingVideo}>
+                  <Trash2 size={17} />
+                  삭제
+                </button>
+              </>
+            )}
             <button className="pill-button" type="button">
               <ThumbsUp size={17} />
               {video.likes}
@@ -130,6 +270,7 @@ export function WatchPage() {
         <section className="description-box">
           <strong>{video.category}</strong>
           <p>{video.description}</p>
+          {managementError && !isEditing && <p className="form-error">{managementError}</p>}
         </section>
 
         <section className="comments-section">

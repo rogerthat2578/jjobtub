@@ -1,16 +1,20 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { VideoStatus } from '@prisma/client';
+import type { Request } from 'express';
 import { ReadStream } from 'fs';
+import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { StreamingService } from '../storage/streaming.service';
 import { CreateVideoDto } from './dto/create-video.dto';
+import { UpdateVideoDto } from './dto/update-video.dto';
 import { toVideoDetail, toVideoListItem } from './video-response';
 
 @Injectable()
 export class VideosService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
     private readonly storage: StorageService,
     private readonly streaming: StreamingService,
   ) {}
@@ -113,6 +117,47 @@ export class VideosService {
     };
   }
 
+  async incrementView(id: string) {
+    const video = await this.prisma.video.update({
+      where: { id },
+      data: { viewCount: { increment: 1 } },
+      select: { viewCount: true },
+    });
+
+    return { views: video.viewCount };
+  }
+
+  async updateVideo(id: string, dto: UpdateVideoDto, request: Request) {
+    await this.assertVideoOwner(id, request);
+    const data: UpdateVideoDto = {};
+
+    if (dto.title !== undefined) data.title = dto.title;
+    if (dto.description !== undefined) data.description = dto.description;
+    if (dto.category !== undefined) data.category = dto.category;
+    if (dto.visibility !== undefined) data.visibility = dto.visibility;
+
+    const video = await this.prisma.video.update({
+      where: { id },
+      data,
+      include: { channel: true },
+    });
+
+    return toVideoDetail(video);
+  }
+
+  async deleteVideo(id: string, request: Request) {
+    await this.assertVideoOwner(id, request);
+    const files = await this.prisma.videoFile.findMany({
+      where: { videoId: id },
+      select: { storagePath: true },
+    });
+
+    await this.prisma.video.delete({ where: { id } });
+    await Promise.all(files.map((file) => this.storage.deleteFile(file.storagePath)));
+
+    return { ok: true };
+  }
+
   async streamOriginal(id: string, rangeHeader: string | undefined): Promise<{
     statusCode: number;
     headers: Record<string, string>;
@@ -148,5 +193,25 @@ export class VideosService {
   <path d="M560 260v200l180-100-180-100z" fill="#f43f5e"/>
   <text x="640" y="560" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#ffffff">jjobtub ${label}</text>
 </svg>`;
+  }
+
+  private async assertVideoOwner(id: string, request: Request) {
+    const user = await this.authService.getCurrentUser(request);
+    if (!user) {
+      throw new UnauthorizedException('Login required');
+    }
+
+    const video = await this.prisma.video.findUnique({
+      where: { id },
+      include: { channel: true },
+    });
+    if (!video) {
+      throw new NotFoundException('Video not found');
+    }
+    if (video.channel.ownerId !== user.id) {
+      throw new ForbiddenException('Only the channel owner can manage this video');
+    }
+
+    return video;
   }
 }

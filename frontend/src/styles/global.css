@@ -468,6 +468,58 @@ img {
   gap: 8px;
 }
 
+.danger-button {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.danger-button:hover {
+  background: #fecaca;
+}
+
+.video-edit-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.video-edit-form label {
+  display: grid;
+  gap: 7px;
+  font-weight: 800;
+}
+
+.video-edit-form input,
+.video-edit-form textarea,
+.video-edit-form select {
+  width: 100%;
+  border: 1px solid #d6d3d1;
+  border-radius: 8px;
+  padding: 11px 12px;
+  outline: 0;
+  background: #ffffff;
+}
+
+.video-edit-form input:focus,
+.video-edit-form textarea:focus,
+.video-edit-form select:focus {
+  border-color: var(--ink);
+}
+
+.video-management-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.video-management-row .form-error {
+  margin-right: auto;
+}
+
 .channel-panel {
   display: flex;
   align-items: center;

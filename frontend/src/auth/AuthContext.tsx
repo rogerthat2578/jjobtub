@@ -1,11 +1,17 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
-import { fetchCurrentUser, login as loginRequest, logout as logoutRequest } from "../services/apiClient";
+import {
+  fetchCurrentUser,
+  login as loginRequest,
+  logout as logoutRequest,
+  register as registerRequest,
+} from "../services/apiClient";
 import type { User } from "../types/user";
 
 type AuthContextValue = {
   user: User | null;
   isLoading: boolean;
   login: (input: { email: string; password: string }) => Promise<void>;
+  register: (input: { email: string; password: string; displayName: string }) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -29,6 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async login(input) {
         setUser(await loginRequest(input));
       },
+      async register(input) {
+        setUser(await registerRequest(input));
+      },
       async logout() {
         await logoutRequest();
         setUser(null);
@@ -47,4 +56,3 @@ export function useAuth() {
   }
   return context;
 }
-

@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Res, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req, Res, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Response } from 'express';
+import type { Request, Response } from 'express';
 import { CreateVideoDto } from './dto/create-video.dto';
+import { UpdateVideoDto } from './dto/update-video.dto';
 import { VideosService } from './videos.service';
 
 @Controller('videos')
@@ -31,6 +32,21 @@ export class VideosController {
   @Post()
   createVideo(@Body() dto: CreateVideoDto) {
     return this.videosService.createVideo(dto);
+  }
+
+  @Post(':id/view')
+  incrementView(@Param('id') id: string) {
+    return this.videosService.incrementView(id);
+  }
+
+  @Patch(':id')
+  updateVideo(@Param('id') id: string, @Body() dto: UpdateVideoDto, @Req() request: Request) {
+    return this.videosService.updateVideo(id, dto, request);
+  }
+
+  @Delete(':id')
+  deleteVideo(@Param('id') id: string, @Req() request: Request) {
+    return this.videosService.deleteVideo(id, request);
   }
 
   @Post(':id/upload')

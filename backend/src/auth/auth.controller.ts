@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Post, Req, Res, UnauthorizedException 
 import type { Request, Response } from 'express';
 import { AuthService, SESSION_COOKIE_NAME } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -10,12 +11,15 @@ export class AuthController {
   @Post('login')
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.authService.login(dto);
-    response.cookie(SESSION_COOKIE_NAME, result.token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      path: '/',
-      expires: result.expiresAt,
-    });
+    this.setSessionCookie(response, result.token, result.expiresAt);
+
+    return { user: result.user };
+  }
+
+  @Post('register')
+  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) response: Response) {
+    const result = await this.authService.register(dto);
+    this.setSessionCookie(response, result.token, result.expiresAt);
 
     return { user: result.user };
   }
@@ -42,5 +46,14 @@ export class AuthController {
     });
 
     return { ok: true };
+  }
+
+  private setSessionCookie(response: Response, token: string, expiresAt: Date) {
+    response.cookie(SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      expires: expiresAt,
+    });
   }
 }

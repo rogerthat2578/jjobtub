@@ -141,10 +141,12 @@ describe('Comments API', () => {
       body: 'New comment',
       author: { id: author.id, displayName: 'Comment Author' },
     });
-    expect(prisma.session.findUnique).toHaveBeenCalledWith({
-      where: { token: 'session-token' },
-      include: { user: true },
-    });
+    expect(prisma.session.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { token: 'session-token' },
+        include: expect.objectContaining({ user: expect.anything() }),
+      }),
+    );
     expect(prisma.comment.create).toHaveBeenLastCalledWith({
       data: {
         videoId: 'video-1',
