@@ -11,6 +11,8 @@ type PlaylistWithItems = Playlist & {
   items: Array<PlaylistItem & { video?: Video & { channel: Channel } }>;
 };
 
+type PlaylistOrder = 'manual' | 'recent' | 'oldest';
+
 @Injectable()
 export class PlaylistsService {
   constructor(
@@ -26,7 +28,7 @@ export class PlaylistsService {
       include: {
         items: {
           include: { video: { include: { channel: true } } },
-          orderBy: { createdAt: 'desc' },
+          orderBy: [{ position: 'asc' }, { createdAt: 'desc' }],
         },
       },
       orderBy: [{ kind: 'desc' }, { updatedAt: 'desc' }],
@@ -50,13 +52,14 @@ export class PlaylistsService {
     return toPlaylistResponse(playlist);
   }
 
-  async listPlaylistVideos(id: string, request: Request) {
+  async listPlaylistVideos(id: string, request: Request, order: string = 'manual') {
     const user = await this.requireCurrentUser(request);
     const playlist = await this.assertPlaylistOwner(id, user.id);
+    const playlistOrder = normalizePlaylistOrder(order);
     const items = await this.prisma.playlistItem.findMany({
       where: { playlistId: playlist.id },
       include: { video: { include: { channel: true } } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: playlistItemOrderBy(playlistOrder),
       take: 100,
     });
 
@@ -74,11 +77,45 @@ export class PlaylistsService {
     const user = await this.requireCurrentUser(request);
     const playlist = await this.assertPlaylistOwner(id, user.id);
     await this.ensureVideoExists(videoId);
+    const position = await this.prisma.playlistItem.count({ where: { playlistId: playlist.id } });
     await this.prisma.playlistItem.upsert({
       where: { playlistId_videoId: { playlistId: playlist.id, videoId } },
-      create: { playlistId: playlist.id, videoId },
+      create: { playlistId: playlist.id, videoId, position },
       update: {},
     });
+
+    return { saved: true };
+  }
+
+  async reorderPlaylistItems(id: string, videoIds: string[], request: Request) {
+    const user = await this.requireCurrentUser(request);
+    const playlist = await this.assertPlaylistOwner(id, user.id);
+    const uniqueVideoIds = Array.from(new Set(videoIds ?? []));
+    if (uniqueVideoIds.length === 0 || uniqueVideoIds.length !== videoIds?.length) {
+      throw new BadRequestException('Playlist item order is invalid');
+    }
+
+    const existingItems = await this.prisma.playlistItem.findMany({
+      where: { playlistId: playlist.id },
+      select: { videoId: true },
+    });
+    const existingVideoIds = existingItems.map((item) => item.videoId).sort();
+    const requestedVideoIds = [...uniqueVideoIds].sort();
+    if (
+      existingVideoIds.length !== requestedVideoIds.length ||
+      existingVideoIds.some((videoId, index) => videoId !== requestedVideoIds[index])
+    ) {
+      throw new BadRequestException('Playlist item order must include every playlist video once');
+    }
+
+    await this.prisma.$transaction(
+      uniqueVideoIds.map((videoId, position) =>
+        this.prisma.playlistItem.update({
+          where: { playlistId_videoId: { playlistId: playlist.id, videoId } },
+          data: { position },
+        }),
+      ),
+    );
 
     return { saved: true };
   }
@@ -147,4 +184,21 @@ function toPlaylistResponse(playlist: PlaylistWithItems) {
     createdAt: playlist.createdAt.toISOString(),
     updatedAt: playlist.updatedAt.toISOString(),
   };
+}
+
+function normalizePlaylistOrder(order?: string): PlaylistOrder {
+  if (order === 'recent' || order === 'oldest') {
+    return order;
+  }
+  return 'manual';
+}
+
+function playlistItemOrderBy(order: PlaylistOrder) {
+  if (order === 'recent') {
+    return [{ createdAt: 'desc' as const }, { position: 'asc' as const }];
+  }
+  if (order === 'oldest') {
+    return [{ createdAt: 'asc' as const }, { position: 'asc' as const }];
+  }
+  return [{ position: 'asc' as const }, { createdAt: 'asc' as const }];
 }

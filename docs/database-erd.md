@@ -91,6 +91,7 @@ erDiagram
     string id PK
     string playlistId FK
     string videoId FK
+    int position
     datetime createdAt
   }
 

@@ -50,7 +50,7 @@ const likedPlaylist = {
   kind: 'LIKED',
   createdAt: new Date('2026-06-26T00:00:00.000Z'),
   updatedAt: new Date('2026-06-26T00:00:00.000Z'),
-  items: [{ id: 'item-1', videoId: video.id, playlistId: 'playlist-liked', video }],
+  items: [{ id: 'item-1', videoId: video.id, playlistId: 'playlist-liked', position: 0, createdAt: new Date('2026-06-26T00:00:00.000Z'), video }],
 };
 
 const customPlaylist = {
@@ -73,9 +73,16 @@ describe('Playlists API', () => {
       create: jest.fn().mockResolvedValue(customPlaylist),
     },
     playlistItem: {
+      count: jest.fn().mockResolvedValue(1),
+      findMany: jest.fn().mockResolvedValue([
+        { id: 'item-1', playlistId: customPlaylist.id, videoId: 'video-1', position: 0 },
+        { id: 'item-2', playlistId: customPlaylist.id, videoId: 'video-2', position: 1 },
+      ]),
       upsert: jest.fn().mockResolvedValue({ id: 'item-2', playlistId: customPlaylist.id, videoId: video.id }),
       delete: jest.fn().mockResolvedValue({ id: 'item-2', playlistId: customPlaylist.id, videoId: video.id }),
+      update: jest.fn().mockResolvedValue({}),
     },
+    $transaction: jest.fn((operations) => Promise.all(operations)),
     video: {
       findUnique: jest.fn().mockResolvedValue(video),
     },
@@ -97,8 +104,15 @@ describe('Playlists API', () => {
     prisma.playlist.findFirst.mockResolvedValue(likedPlaylist);
     prisma.playlist.findUnique.mockResolvedValue(customPlaylist);
     prisma.playlist.create.mockResolvedValue(customPlaylist);
+    prisma.playlistItem.count.mockResolvedValue(1);
+    prisma.playlistItem.findMany.mockResolvedValue([
+      { id: 'item-1', playlistId: customPlaylist.id, videoId: 'video-1', position: 0 },
+      { id: 'item-2', playlistId: customPlaylist.id, videoId: 'video-2', position: 1 },
+    ]);
     prisma.playlistItem.upsert.mockResolvedValue({ id: 'item-2', playlistId: customPlaylist.id, videoId: video.id });
     prisma.playlistItem.delete.mockResolvedValue({ id: 'item-2', playlistId: customPlaylist.id, videoId: video.id });
+    prisma.playlistItem.update.mockResolvedValue({});
+    prisma.$transaction.mockImplementation((operations) => Promise.all(operations));
     prisma.video.findUnique.mockResolvedValue(video);
     prisma.session.findUnique.mockResolvedValue({
       id: 'session-1',
@@ -164,7 +178,7 @@ describe('Playlists API', () => {
     expect(response.body).toEqual({ saved: true });
     expect(prisma.playlistItem.upsert).toHaveBeenCalledWith({
       where: { playlistId_videoId: { playlistId: customPlaylist.id, videoId: video.id } },
-      create: { playlistId: customPlaylist.id, videoId: video.id },
+      create: { playlistId: customPlaylist.id, videoId: video.id, position: 1 },
       update: {},
     });
   });
@@ -178,6 +192,28 @@ describe('Playlists API', () => {
     expect(response.body).toEqual({ saved: false });
     expect(prisma.playlistItem.delete).toHaveBeenCalledWith({
       where: { playlistId_videoId: { playlistId: customPlaylist.id, videoId: video.id } },
+    });
+  });
+
+  it('reorders videos in a playlist by saving item positions', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/api/playlists/playlist-custom/items/reorder')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .send({ videoIds: ['video-2', 'video-1'] })
+      .expect(200);
+
+    expect(response.body).toEqual({ saved: true });
+    expect(prisma.playlistItem.findMany).toHaveBeenCalledWith({
+      where: { playlistId: customPlaylist.id },
+      select: { videoId: true },
+    });
+    expect(prisma.playlistItem.update).toHaveBeenNthCalledWith(1, {
+      where: { playlistId_videoId: { playlistId: customPlaylist.id, videoId: 'video-2' } },
+      data: { position: 0 },
+    });
+    expect(prisma.playlistItem.update).toHaveBeenNthCalledWith(2, {
+      where: { playlistId_videoId: { playlistId: customPlaylist.id, videoId: 'video-1' } },
+      data: { position: 1 },
     });
   });
 });

@@ -128,9 +128,11 @@ model PlaylistItem {
   playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
   videoId    String
   video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  position   Int      @default(0)
   createdAt  DateTime @default(now())
 
   @@unique([playlistId, videoId])
+  @@index([playlistId, position])
   @@index([videoId])
 }
 

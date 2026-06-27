@@ -140,12 +140,26 @@ export async function removeVideoFromPlaylist(playlistId: string, videoId: strin
   return request<{ saved: boolean }>(`/playlists/${playlistId}/items/${videoId}`, { method: "DELETE" });
 }
 
-export async function fetchPlaylistVideos(playlistId: string) {
-  const data = await request<{ playlist: ApiPlaylist; items: ApiVideoListItem[] }>(`/playlists/${playlistId}/videos`);
+export async function fetchPlaylistVideos(playlistId: string, order?: string) {
+  const searchParams = new URLSearchParams();
+  if (order) {
+    searchParams.set("order", order);
+  }
+  const data = await request<{ playlist: ApiPlaylist; items: ApiVideoListItem[] }>(
+    `/playlists/${playlistId}/videos${toQuery(searchParams)}`,
+  );
   return {
     playlist: mapPlaylist(data.playlist),
     ...mapVideoList(data.items),
   };
+}
+
+export async function reorderPlaylistItems(playlistId: string, videoIds: string[]) {
+  return request<{ saved: boolean }>(`/playlists/${playlistId}/items/reorder`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ videoIds }),
+  });
 }
 
 export async function fetchHistoryVideos() {

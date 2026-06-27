@@ -33,10 +33,20 @@ type PlaylistQueue = {
   channelsById: Record<string, Channel>;
 };
 
+type PlaylistOrder = "manual" | "recent" | "oldest" | "random";
+
+const PLAYLIST_ORDER_OPTIONS: Array<{ value: PlaylistOrder; label: string }> = [
+  { value: "manual", label: "직접 정렬순" },
+  { value: "recent", label: "최근 추가순" },
+  { value: "oldest", label: "오래된 추가순" },
+  { value: "random", label: "랜덤 재생" },
+];
+
 export function WatchPage() {
   const { videoId } = useParams();
   const [searchParams] = useSearchParams();
   const playlistId = searchParams.get("playlist");
+  const playlistOrder = normalizePlaylistOrder(searchParams.get("order"));
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -73,7 +83,7 @@ export function WatchPage() {
       fetchVideo(videoId),
       fetchComments(videoId),
       fetchVideos(),
-      playlistId ? fetchPlaylistVideos(playlistId).catch(() => null) : Promise.resolve(null),
+      playlistId ? fetchPlaylistVideos(playlistId, playlistOrder === "random" ? "manual" : playlistOrder).catch(() => null) : Promise.resolve(null),
     ])
       .then(([videoResult, commentResult, recommendedResult, playlistResult]) => {
         setVideo(videoResult.video);
@@ -91,7 +101,7 @@ export function WatchPage() {
           playlistResult && playlistResult.videos.some((item) => item.id === videoId)
             ? {
                 playlist: playlistResult.playlist,
-                videos: playlistResult.videos,
+                videos: playlistOrder === "random" ? shuffleVideos(playlistResult.videos) : playlistResult.videos,
                 channelsById: playlistResult.channelsById,
               }
             : null,
@@ -100,7 +110,7 @@ export function WatchPage() {
         void recordVideoView(videoId);
       })
       .catch(() => setNotFound(true));
-  }, [playlistId, videoId]);
+  }, [playlistId, playlistOrder, videoId]);
 
   async function recordVideoView(targetVideoId: string) {
     if (viewedVideoIdRef.current === targetVideoId) {
@@ -512,7 +522,7 @@ export function WatchPage() {
       </section>
 
       <aside className="recommendations" aria-label="추천 영상">
-        {playlistQueue && videoId && <PlaylistQueuePanel queue={playlistQueue} currentVideoId={videoId} />}
+        {playlistQueue && videoId && <PlaylistQueuePanel queue={playlistQueue} currentVideoId={videoId} order={playlistOrder} />}
         {recommended.videos.map((item) => (
           <VideoCard
             key={item.id}
@@ -527,7 +537,7 @@ export function WatchPage() {
   );
 }
 
-function PlaylistQueuePanel({ queue, currentVideoId }: { queue: PlaylistQueue; currentVideoId: string }) {
+function PlaylistQueuePanel({ queue, currentVideoId, order }: { queue: PlaylistQueue; currentVideoId: string; order: PlaylistOrder }) {
   const currentIndex = queue.videos.findIndex((item) => item.id === currentVideoId);
 
   return (
@@ -543,6 +553,17 @@ function PlaylistQueuePanel({ queue, currentVideoId }: { queue: PlaylistQueue; c
           <ListPlus size={18} />
         </Link>
       </header>
+      <div className="playlist-queue-controls" aria-label="재생 순서">
+        {PLAYLIST_ORDER_OPTIONS.map((option) => (
+          <Link
+            className={`playlist-order-chip ${order === option.value ? "playlist-order-chip-active" : ""}`}
+            key={option.value}
+            to={`/watch/${currentVideoId}?playlist=${queue.playlist.id}&order=${option.value}`}
+          >
+            {option.label}
+          </Link>
+        ))}
+      </div>
       <div className="playlist-queue-list">
         {queue.videos.map((item, index) => {
           const channel = queue.channelsById[item.channelId];
@@ -552,7 +573,7 @@ function PlaylistQueuePanel({ queue, currentVideoId }: { queue: PlaylistQueue; c
             <Link
               className={`playlist-queue-item ${isActive ? "playlist-queue-item-active" : ""}`}
               key={item.id}
-              to={`/watch/${item.id}?playlist=${queue.playlist.id}`}
+              to={`/watch/${item.id}?playlist=${queue.playlist.id}&order=${order}`}
               aria-current={isActive ? "true" : undefined}
             >
               <span className="playlist-queue-index">{isActive ? "▶" : index + 1}</span>
@@ -612,4 +633,20 @@ function parseTags(value: string) {
         .map((tag) => tag.slice(0, 30)),
     ),
   ).slice(0, 12);
+}
+
+function normalizePlaylistOrder(value: string | null): PlaylistOrder {
+  if (value === "recent" || value === "oldest" || value === "random") {
+    return value;
+  }
+  return "manual";
+}
+
+function shuffleVideos(videos: Video[]) {
+  const nextVideos = [...videos];
+  for (let index = nextVideos.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [nextVideos[index], nextVideos[swapIndex]] = [nextVideos[swapIndex], nextVideos[index]];
+  }
+  return nextVideos;
 }
