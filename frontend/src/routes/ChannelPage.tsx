@@ -4,15 +4,16 @@ import { Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastProvider";
 import { VideoGrid } from "../components/VideoGrid";
-import { fetchChannel, fetchChannelVideos, toggleChannelSubscription, updateChannel, type VideoListResult } from "../services/apiClient";
+import { fetchChannel, fetchChannelVideos, fetchPlaylists, toggleChannelSubscription, updateChannel, type VideoListResult } from "../services/apiClient";
 import type { Channel } from "../types/channel";
+import type { Playlist } from "../types/playlist";
 import type { Video } from "../types/video";
 
 type ChannelPageProps = {
   isMine?: boolean;
 };
 
-type ChannelTab = "home" | "videos" | "about";
+type ChannelTab = "home" | "videos" | "playlists" | "about";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Crect width='160' height='160' fill='%23e7e5e4'/%3E%3Ccircle cx='80' cy='62' r='30' fill='%2378706a'/%3E%3Cpath d='M32 142c7-30 27-46 48-46s41 16 48 46' fill='%2378706a'/%3E%3C/svg%3E";
@@ -25,6 +26,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const { showToast } = useToast();
   const [channel, setChannel] = useState<Channel | null>(null);
   const [videos, setVideos] = useState<VideoListResult>({ videos: [], channelsById: {} });
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activeTab, setActiveTab] = useState<ChannelTab>("home");
   const [notFound, setNotFound] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -56,6 +58,9 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
         setVideos(videoResult);
         setActiveTab("home");
         setNotFound(false);
+        if (isMine) {
+          fetchPlaylists().then(setPlaylists).catch(() => setPlaylists([]));
+        }
       })
       .catch(() => setNotFound(true));
   }, [channelId, isLoading, isMine, user?.channelId]);
@@ -202,6 +207,11 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
         <button type="button" className={activeTab === "videos" ? "active" : ""} onClick={() => setActiveTab("videos")}>
           영상
         </button>
+        {canManageChannel && (
+          <button type="button" className={activeTab === "playlists" ? "active" : ""} onClick={() => setActiveTab("playlists")}>
+            재생 목록
+          </button>
+        )}
         <button type="button" className={activeTab === "about" ? "active" : ""} onClick={() => setActiveTab("about")}>
           정보
         </button>
@@ -235,6 +245,39 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
             <VideoGrid videos={videos.videos} channelsById={videos.channelsById} renderActions={canManageChannel ? renderOwnerBadge : undefined} />
           ) : (
             <p className="empty-state">아직 표시할 영상이 없습니다.</p>
+          )}
+        </section>
+      )}
+
+      {activeTab === "playlists" && canManageChannel && (
+        <section className="page-stack">
+          <div className="section-heading-row">
+            <div>
+              <h2>재생 목록</h2>
+              <p>좋아요 표시한 재생 목록과 직접 만든 재생목록을 관리합니다.</p>
+            </div>
+          </div>
+          {playlists.length > 0 ? (
+            <section className="playlist-grid" aria-label="내 채널 재생목록">
+              {playlists.map((playlist) => (
+                <article className="playlist-card" key={playlist.id}>
+                  <div className="playlist-thumb-stack">
+                    {playlist.videos.slice(0, 3).map((video) => (
+                      <img key={video.id} src={video.thumbnailUrl} alt="" />
+                    ))}
+                    {playlist.videos.length === 0 && <span>비어 있음</span>}
+                  </div>
+                  <div>
+                    <h2>{playlist.name}</h2>
+                    <p>
+                      {playlist.kind === "LIKED" ? "자동 재생목록" : "내 재생목록"} · {playlist.videoCount.toLocaleString()}개 영상
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </section>
+          ) : (
+            <p className="empty-state">아직 재생목록이 없습니다. 시청 페이지에서 저장 버튼으로 새 재생목록을 만들 수 있습니다.</p>
           )}
         </section>
       )}

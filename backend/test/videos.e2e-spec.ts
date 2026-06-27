@@ -60,6 +60,14 @@ describe('Videos API', () => {
       create: jest.fn().mockResolvedValue({ id: 'like-1', videoId: 'video-1', userId: 'user-1' }),
       delete: jest.fn().mockResolvedValue({ id: 'like-1', videoId: 'video-1', userId: 'user-1' }),
     },
+    playlist: {
+      findFirst: jest.fn().mockResolvedValue({ id: 'playlist-liked', ownerId: 'user-1', name: '좋아요 표시한 재생 목록', kind: 'LIKED' }),
+      create: jest.fn().mockResolvedValue({ id: 'playlist-liked', ownerId: 'user-1', name: '좋아요 표시한 재생 목록', kind: 'LIKED' }),
+    },
+    playlistItem: {
+      upsert: jest.fn().mockResolvedValue({ id: 'playlist-item-1', playlistId: 'playlist-liked', videoId: 'video-1' }),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
     channelSubscription: {
       findMany: jest.fn().mockResolvedValue([]),
       findUnique: jest.fn().mockResolvedValue(null),
@@ -105,6 +113,10 @@ describe('Videos API', () => {
     prisma.channel.findUnique.mockResolvedValue(channel);
     prisma.videoLike.findUnique.mockResolvedValue(null);
     prisma.videoLike.findMany.mockResolvedValue([]);
+    prisma.playlist.findFirst.mockResolvedValue({ id: 'playlist-liked', ownerId: 'user-1', name: '좋아요 표시한 재생 목록', kind: 'LIKED' });
+    prisma.playlist.create.mockResolvedValue({ id: 'playlist-liked', ownerId: 'user-1', name: '좋아요 표시한 재생 목록', kind: 'LIKED' });
+    prisma.playlistItem.upsert.mockResolvedValue({ id: 'playlist-item-1', playlistId: 'playlist-liked', videoId: 'video-1' });
+    prisma.playlistItem.deleteMany.mockResolvedValue({ count: 1 });
     prisma.channelSubscription.findMany.mockResolvedValue([]);
     prisma.channelSubscription.findUnique.mockResolvedValue(null);
     prisma.videoView.findMany.mockResolvedValue([]);
@@ -531,6 +543,11 @@ describe('Videos API', () => {
     expect(prisma.videoLike.create).toHaveBeenCalledWith({
       data: { videoId: 'video-1', userId: 'user-1' },
     });
+    expect(prisma.playlistItem.upsert).toHaveBeenCalledWith({
+      where: { playlistId_videoId: { playlistId: 'playlist-liked', videoId: 'video-1' } },
+      create: { playlistId: 'playlist-liked', videoId: 'video-1' },
+      update: {},
+    });
     expect(prisma.video.update).toHaveBeenCalledWith({
       where: { id: 'video-1' },
       data: { likeCount: { increment: 1 } },
@@ -550,6 +567,9 @@ describe('Videos API', () => {
     expect(response.body).toEqual({ liked: false, likes: 2 });
     expect(prisma.videoLike.delete).toHaveBeenCalledWith({
       where: { videoId_userId: { videoId: 'video-1', userId: 'user-1' } },
+    });
+    expect(prisma.playlistItem.deleteMany).toHaveBeenCalledWith({
+      where: { playlistId: 'playlist-liked', videoId: 'video-1' },
     });
     expect(prisma.video.update).toHaveBeenCalledWith({
       where: { id: 'video-1' },

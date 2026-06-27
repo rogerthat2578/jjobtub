@@ -1,8 +1,9 @@
-import { Bell, Pencil, Share2, ThumbsUp, Trash2 } from "lucide-react";
+import { Bell, ListPlus, Pencil, Share2, ThumbsUp, Trash2 } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { CommentList } from "../components/CommentList";
+import { PlaylistSaveDialog } from "../components/PlaylistSaveDialog";
 import { useToast } from "../components/ToastProvider";
 import { VideoCard } from "../components/VideoCard";
 import {
@@ -46,6 +47,7 @@ export function WatchPage() {
   const [reactionError, setReactionError] = useState("");
   const [isLikeBusy, setIsLikeBusy] = useState(false);
   const [isSubscriptionBusy, setIsSubscriptionBusy] = useState(false);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const viewedVideoIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -203,6 +205,15 @@ export function WatchPage() {
     } catch {
       showToast("링크 복사에 실패했습니다.", "error");
     }
+  }
+
+  function handleSaveClick() {
+    if (!user) {
+      setReactionError("로그인 후 재생목록에 저장할 수 있습니다.");
+      return;
+    }
+    setReactionError("");
+    setIsSaveDialogOpen(true);
   }
 
   async function handleCommentSubmit(event: FormEvent<HTMLFormElement>) {
@@ -381,6 +392,10 @@ export function WatchPage() {
               <Share2 size={17} />
               공유
             </button>
+            <button className="pill-button" type="button" onClick={handleSaveClick}>
+              <ListPlus size={17} />
+              저장
+            </button>
           </div>
         </div>
 
@@ -453,6 +468,7 @@ export function WatchPage() {
           />
         ))}
       </aside>
+      <PlaylistSaveDialog videoId={video.id} isOpen={isSaveDialogOpen} onClose={() => setIsSaveDialogOpen(false)} />
     </div>
   );
 }

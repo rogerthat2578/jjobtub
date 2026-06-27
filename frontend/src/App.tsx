@@ -7,16 +7,15 @@ import { AuthPage } from "./routes/AuthPage";
 import { ChannelPage } from "./routes/ChannelPage";
 import { HomePage } from "./routes/HomePage";
 import { PersonalVideoListPage } from "./routes/PersonalVideoListPage";
+import { PlaylistLibraryPage } from "./routes/PlaylistLibraryPage";
 import { SearchPage } from "./routes/SearchPage";
 import { UploadPage } from "./routes/UploadPage";
 import { WatchPage } from "./routes/WatchPage";
 import {
   clearHistoryVideos,
   fetchHistoryVideos,
-  fetchLibraryVideos,
   fetchSubscribedVideos,
   removeHistoryVideo,
-  removeLibraryVideo,
 } from "./services/apiClient";
 
 export default function App() {
@@ -43,17 +42,7 @@ export default function App() {
             />
             <Route
               path="/library"
-              element={
-                <PersonalVideoListPage
-                  title="보관함"
-                  description="좋아요를 누른 영상을 다시 볼 수 있습니다."
-                  emptyMessage="아직 보관함에 담긴 영상이 없습니다."
-                  loadVideos={fetchLibraryVideos}
-                  removeVideo={removeLibraryVideo}
-                  removeLabel="보관함에서 제거"
-                  removeSuccessMessage="보관함에서 제거했습니다."
-                />
-              }
+              element={<PlaylistLibraryPage />}
             />
             <Route
               path="/history"

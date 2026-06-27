@@ -32,6 +32,11 @@ enum VideoSource {
   YOUTUBE
 }
 
+enum PlaylistKind {
+  LIKED
+  CUSTOM
+}
+
 model User {
   id          String    @id @default(cuid())
   email       String    @unique
@@ -44,6 +49,7 @@ model User {
   sessions    Session[]
   videoLikes  VideoLike[]
   videoViews  VideoView[]
+  playlists   Playlist[]
   subscriptions ChannelSubscription[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -96,8 +102,35 @@ model Video {
   comments        Comment[]
   likes           VideoLike[]
   views           VideoView[]
+  playlistItems   PlaylistItem[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
+}
+
+model Playlist {
+  id        String         @id @default(cuid())
+  ownerId   String
+  owner     User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  kind      PlaylistKind   @default(CUSTOM)
+  items     PlaylistItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([ownerId, name])
+  @@index([ownerId, kind])
+}
+
+model PlaylistItem {
+  id         String   @id @default(cuid())
+  playlistId String
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  videoId    String
+  video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([playlistId, videoId])
+  @@index([videoId])
 }
 
 model VideoLike {

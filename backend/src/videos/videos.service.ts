@@ -350,6 +350,10 @@ export class VideosService {
     const existingLike = await this.prisma.videoLike.findUnique({ where: key });
     if (existingLike) {
       await this.prisma.videoLike.delete({ where: key });
+      const likedPlaylist = await this.ensureLikedPlaylist(user.id);
+      await this.prisma.playlistItem.deleteMany({
+        where: { playlistId: likedPlaylist.id, videoId: id },
+      });
       const video = await this.prisma.video.update({
         where: { id },
         data: { likeCount: { decrement: 1 } },
@@ -361,6 +365,12 @@ export class VideosService {
 
     await this.prisma.videoLike.create({
       data: { videoId: id, userId: user.id },
+    });
+    const likedPlaylist = await this.ensureLikedPlaylist(user.id);
+    await this.prisma.playlistItem.upsert({
+      where: { playlistId_videoId: { playlistId: likedPlaylist.id, videoId: id } },
+      create: { playlistId: likedPlaylist.id, videoId: id },
+      update: {},
     });
     const video = await this.prisma.video.update({
       where: { id },
@@ -489,6 +499,19 @@ export class VideosService {
       throw new UnauthorizedException('Login required');
     }
     return user;
+  }
+
+  private async ensureLikedPlaylist(userId: string) {
+    const existingPlaylist = await this.prisma.playlist.findFirst({
+      where: { ownerId: userId, kind: 'LIKED' },
+    });
+    if (existingPlaylist) {
+      return existingPlaylist;
+    }
+
+    return this.prisma.playlist.create({
+      data: { ownerId: userId, name: '좋아요 표시한 재생 목록', kind: 'LIKED' },
+    });
   }
 
   private async extractAndStoreThumbnail(videoId: string, inputPath: string) {

@@ -1,5 +1,6 @@
 import type { Channel } from "../types/channel";
 import type { Comment } from "../types/comment";
+import type { Playlist } from "../types/playlist";
 import type { User } from "../types/user";
 import type { Video } from "../types/video";
 
@@ -52,6 +53,16 @@ type ApiVideoDetail = ApiVideoListItem & {
   visibility?: string;
 };
 
+type ApiPlaylist = {
+  id: string;
+  name: string;
+  kind: "LIKED" | "CUSTOM";
+  videoCount: number;
+  videos: ApiVideoListItem[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 type ApiComment = {
   id: string;
   body: string;
@@ -100,6 +111,40 @@ export async function fetchSubscribedVideos() {
 export async function fetchLibraryVideos() {
   const data = await request<{ items: ApiVideoListItem[] }>("/videos/library");
   return mapVideoList(data.items);
+}
+
+export async function fetchPlaylists() {
+  const data = await request<{ items: ApiPlaylist[] }>("/playlists");
+  return data.items.map(mapPlaylist);
+}
+
+export async function createPlaylist(name: string) {
+  const data = await request<ApiPlaylist>("/playlists", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  return mapPlaylist(data);
+}
+
+export async function addVideoToPlaylist(playlistId: string, videoId: string) {
+  return request<{ saved: boolean }>(`/playlists/${playlistId}/items`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ videoId }),
+  });
+}
+
+export async function removeVideoFromPlaylist(playlistId: string, videoId: string) {
+  return request<{ saved: boolean }>(`/playlists/${playlistId}/items/${videoId}`, { method: "DELETE" });
+}
+
+export async function fetchPlaylistVideos(playlistId: string) {
+  const data = await request<{ playlist: ApiPlaylist; items: ApiVideoListItem[] }>(`/playlists/${playlistId}/videos`);
+  return {
+    playlist: mapPlaylist(data.playlist),
+    ...mapVideoList(data.items),
+  };
 }
 
 export async function fetchHistoryVideos() {
@@ -384,6 +429,18 @@ function mapChannel(channel: ApiChannel): Channel {
     joinedAt: channel.createdAt ? formatDate(channel.createdAt) : undefined,
     description: channel.description ?? "",
     subscribedByMe: channel.subscribedByMe,
+  };
+}
+
+function mapPlaylist(playlist: ApiPlaylist): Playlist {
+  return {
+    id: playlist.id,
+    name: playlist.name,
+    kind: playlist.kind,
+    videoCount: playlist.videoCount,
+    videos: playlist.videos.map(mapVideo),
+    createdAt: formatDate(playlist.createdAt),
+    updatedAt: formatDate(playlist.updatedAt),
   };
 }
 

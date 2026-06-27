@@ -1,4 +1,4 @@
-import { Menu, Search, Upload, UserCircle, Video } from "lucide-react";
+import { LogOut, Menu, Search, Tv, Upload, UserCircle, Video } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -101,17 +101,29 @@ export function Header({ onMenuClick }: HeaderProps) {
             <div className="account-popover">
               {user ? (
                 <>
-                  <strong>{user.displayName}</strong>
-                  <small>{user.email}</small>
+                  <div className="account-profile-card">
+                    <span className="account-avatar">
+                      {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <UserCircle size={34} />}
+                    </span>
+                    <span>
+                      <small>내 계정</small>
+                      <strong>{user.displayName}</strong>
+                      <em>{user.email}</em>
+                    </span>
+                  </div>
                   {authError && <p className="form-error">{authError}</p>}
-                  {user.channelId && (
-                    <Link className="account-link" to="/my-channel" onClick={() => setIsAccountOpen(false)}>
-                      내 채널
-                    </Link>
-                  )}
-                  <button className="primary-button" type="button" onClick={handleLogout} disabled={isAuthSubmitting}>
-                    로그아웃
-                  </button>
+                  <div className="account-action-list">
+                    {user.channelId && (
+                      <Link className="account-link" to="/my-channel" onClick={() => setIsAccountOpen(false)}>
+                        <Tv size={17} />
+                        <span>내 채널</span>
+                      </Link>
+                    )}
+                    <button className="account-link account-logout" type="button" onClick={handleLogout} disabled={isAuthSubmitting}>
+                      <LogOut size={17} />
+                      <span>{isAuthSubmitting ? "로그아웃 중" : "로그아웃"}</span>
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>
