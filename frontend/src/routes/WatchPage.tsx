@@ -1,5 +1,5 @@
 import { Bell, Pencil, Share2, ThumbsUp, Trash2 } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { CommentList } from "../components/CommentList";
@@ -41,12 +41,14 @@ export function WatchPage() {
   const [reactionError, setReactionError] = useState("");
   const [isLikeBusy, setIsLikeBusy] = useState(false);
   const [isSubscriptionBusy, setIsSubscriptionBusy] = useState(false);
+  const viewedVideoIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!videoId) {
       setNotFound(true);
       return;
     }
+    viewedVideoIdRef.current = null;
 
     Promise.all([fetchVideo(videoId), fetchComments(videoId), fetchVideos()])
       .then(([videoResult, commentResult, recommendedResult]) => {
@@ -61,23 +63,18 @@ export function WatchPage() {
           videos: recommendedResult.videos.filter((item) => item.id !== videoId).slice(0, 5),
         });
         setNotFound(false);
+        void recordVideoView(videoId);
       })
       .catch(() => setNotFound(true));
   }, [videoId]);
 
-  async function handlePlaybackStarted() {
-    if (!videoId || !video) {
+  async function recordVideoView(targetVideoId: string) {
+    if (viewedVideoIdRef.current === targetVideoId) {
       return;
     }
-
-    const storageKey = `jjobtub:viewed:${videoId}`;
-    if (sessionStorage.getItem(storageKey)) {
-      return;
-    }
-
-    sessionStorage.setItem(storageKey, "1");
+    viewedVideoIdRef.current = targetVideoId;
     try {
-      const result = await incrementVideoView(videoId);
+      const result = await incrementVideoView(targetVideoId);
       setVideo((currentVideo) =>
         currentVideo
           ? {
@@ -88,7 +85,7 @@ export function WatchPage() {
           : currentVideo,
       );
     } catch {
-      sessionStorage.removeItem(storageKey);
+      viewedVideoIdRef.current = null;
     }
   }
 
@@ -259,7 +256,6 @@ export function WatchPage() {
             title={video.title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
-            onLoad={handlePlaybackStarted}
           />
         ) : (
           <video
@@ -272,7 +268,6 @@ export function WatchPage() {
             poster={video.thumbnailUrl}
             src={video.videoUrl}
             onContextMenu={(event) => event.preventDefault()}
-            onPlay={handlePlaybackStarted}
           />
         )}
         {isEditing ? (
