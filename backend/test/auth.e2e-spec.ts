@@ -43,14 +43,14 @@ describe('Auth API', () => {
           id: 'session-1',
           userId: user.id,
           token: 'session-token',
-          expiresAt: new Date('2026-06-27T00:00:00.000Z'),
+          expiresAt: new Date('2099-01-01T00:00:00.000Z'),
           createdAt: new Date('2026-06-26T00:00:00.000Z'),
         }),
         findUnique: jest.fn().mockResolvedValue({
           id: 'session-1',
           userId: user.id,
           token: 'session-token',
-          expiresAt: new Date('2026-06-27T00:00:00.000Z'),
+          expiresAt: new Date('2099-01-01T00:00:00.000Z'),
           createdAt: new Date('2026-06-26T00:00:00.000Z'),
           user,
         }),
@@ -100,7 +100,7 @@ describe('Auth API', () => {
       id: 'session-2',
       userId: 'new-user-1',
       token: 'new-session-token',
-      expiresAt: new Date('2026-06-27T00:00:00.000Z'),
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
       createdAt: new Date('2026-06-26T00:00:00.000Z'),
     });
 

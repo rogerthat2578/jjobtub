@@ -27,6 +27,9 @@ const video = {
   durationSeconds: 0,
   viewCount: 0,
   likeCount: 0,
+  source: 'LOCAL',
+  externalUrl: null,
+  externalVideoId: null,
   publishedAt: new Date('2026-06-26T01:00:00.000Z'),
   createdAt: new Date('2026-06-26T01:00:00.000Z'),
   updatedAt: new Date('2026-06-26T01:00:00.000Z'),
@@ -48,7 +51,7 @@ describe('Channels API', () => {
         id: 'session-1',
         userId: 'user-2',
         token: 'session-token',
-        expiresAt: new Date('2026-06-27T00:00:00.000Z'),
+        expiresAt: new Date('2099-01-01T00:00:00.000Z'),
         createdAt: new Date('2026-06-26T00:00:00.000Z'),
         user: {
           id: 'user-2',

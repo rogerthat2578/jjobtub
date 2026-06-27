@@ -21,6 +21,7 @@ type ApiVideoListItem = {
   thumbnailUrl: string;
   channel: ApiChannel;
   views: number;
+  source?: "LOCAL" | "YOUTUBE";
   uploadedAt: string;
   durationSeconds: number;
   category: string;
@@ -31,6 +32,8 @@ type ApiVideoDetail = ApiVideoListItem & {
   likeCount: number;
   likedByMe?: boolean;
   streamUrl: string;
+  embedUrl?: string | null;
+  externalUrl?: string | null;
   channel: ApiChannel;
   visibility?: string;
 };
@@ -137,6 +140,8 @@ export async function createVideo(input: {
   description: string;
   category: string;
   channelId: string;
+  source?: "LOCAL" | "YOUTUBE";
+  externalUrl?: string;
 }) {
   return request<{ id: string; status: string }>("/videos", {
     method: "POST",
@@ -219,6 +224,8 @@ function mapVideo(item: ApiVideoListItem | ApiVideoDetail): Video {
     description: "description" in item ? item.description : "",
     thumbnailUrl: absoluteApiUrl(item.thumbnailUrl),
     videoUrl: "streamUrl" in item ? absoluteApiUrl(item.streamUrl) : streamUrl(item.id),
+    embedUrl: "embedUrl" in item ? item.embedUrl ?? undefined : undefined,
+    source: item.source,
     channelId: item.channel.id,
     views: `${item.views.toLocaleString()}회`,
     uploadedAt: formatDate(item.uploadedAt),

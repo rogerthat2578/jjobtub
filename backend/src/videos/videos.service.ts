@@ -9,6 +9,7 @@ import { StreamingService } from '../storage/streaming.service';
 import { CreateVideoDto } from './dto/create-video.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
 import { toVideoDetail, toVideoListItem } from './video-response';
+import { extractYouTubeVideoId } from './youtube-url';
 
 @Injectable()
 export class VideosService {
@@ -76,6 +77,32 @@ export class VideosService {
       throw new NotFoundException('Channel not found');
     }
 
+    if (dto.source === 'YOUTUBE') {
+      if (!dto.externalUrl) {
+        throw new BadRequestException('YouTube URL is required');
+      }
+      const externalVideoId = extractYouTubeVideoId(dto.externalUrl);
+      const video = await this.prisma.video.create({
+        data: {
+          channelId: dto.channelId,
+          title: dto.title,
+          description: dto.description,
+          category: dto.category,
+          visibility: dto.visibility ?? 'PUBLIC',
+          status: 'READY',
+          source: 'YOUTUBE',
+          externalUrl: dto.externalUrl,
+          externalVideoId,
+          publishedAt: new Date(),
+        },
+      });
+
+      return {
+        id: video.id,
+        status: video.status,
+      };
+    }
+
     const video = await this.prisma.video.create({
       data: {
         channelId: dto.channelId,
@@ -84,6 +111,7 @@ export class VideosService {
         category: dto.category,
         visibility: dto.visibility ?? 'PUBLIC',
         status: 'DRAFT',
+        source: 'LOCAL',
       },
     });
 
@@ -97,6 +125,9 @@ export class VideosService {
     const video = await this.prisma.video.findUnique({ where: { id } });
     if (!video) {
       throw new NotFoundException('Video not found');
+    }
+    if (video.source !== 'LOCAL') {
+      throw new BadRequestException('Only local videos can receive uploaded files');
     }
     if (!file?.buffer) {
       throw new BadRequestException('MP4 file is required');

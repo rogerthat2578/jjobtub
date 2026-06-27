@@ -4,6 +4,8 @@ export type Video = {
   description: string;
   thumbnailUrl: string;
   videoUrl: string;
+  embedUrl?: string;
+  source?: "LOCAL" | "YOUTUBE";
   channelId: string;
   views: string;
   uploadedAt: string;

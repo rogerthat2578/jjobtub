@@ -457,8 +457,14 @@ img {
 .player {
   width: 100%;
   aspect-ratio: 16 / 9;
+  display: block;
+  border: 0;
   border-radius: 8px;
   background: #09090b;
+}
+
+.youtube-player {
+  overflow: hidden;
 }
 
 .watch-title {
@@ -782,6 +788,34 @@ img {
   display: grid;
   gap: 18px;
   margin-top: 24px;
+}
+
+.segmented-control {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  width: min(100%, 420px);
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.segmented-control button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.segmented-control .segmented-active {
+  color: #ffffff;
+  background: var(--ink);
 }
 
 .upload-form label {

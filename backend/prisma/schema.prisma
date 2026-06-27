@@ -27,6 +27,11 @@ enum VideoFileKind {
   HLS_VARIANT
 }
 
+enum VideoSource {
+  LOCAL
+  YOUTUBE
+}
+
 model User {
   id          String    @id @default(cuid())
   email       String    @unique
@@ -78,6 +83,9 @@ model Video {
   category        String
   visibility      VideoVisibility @default(PUBLIC)
   status          VideoStatus     @default(DRAFT)
+  source          VideoSource     @default(LOCAL)
+  externalUrl     String?
+  externalVideoId String?
   durationSeconds Int             @default(0)
   viewCount       Int             @default(0)
   likeCount       Int             @default(0)

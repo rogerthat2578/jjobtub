@@ -27,6 +27,9 @@ const video = {
   durationSeconds: 123,
   viewCount: 7,
   likeCount: 3,
+  source: 'LOCAL',
+  externalUrl: null,
+  externalVideoId: null,
   publishedAt: new Date('2026-06-26T00:00:00.000Z'),
   createdAt: new Date('2026-06-26T00:00:00.000Z'),
   updatedAt: new Date('2026-06-26T00:00:00.000Z'),
@@ -56,7 +59,7 @@ describe('Videos API', () => {
         id: 'session-1',
         userId: 'user-1',
         token: 'session-token',
-        expiresAt: new Date('2026-06-27T00:00:00.000Z'),
+        expiresAt: new Date('2099-01-01T00:00:00.000Z'),
         createdAt: new Date('2026-06-26T00:00:00.000Z'),
         user: {
           id: 'user-1',
@@ -108,6 +111,7 @@ describe('Videos API', () => {
       id: 'video-1',
       title: 'First Video',
       description: 'The first test video',
+      source: 'LOCAL',
       streamUrl: '/api/videos/video-1/stream',
       channel: { id: channel.id, name: 'Test Channel' },
     });
@@ -137,6 +141,7 @@ describe('Videos API', () => {
         category: '음악',
         visibility: 'PUBLIC',
         status: 'DRAFT',
+        source: 'LOCAL',
       },
     });
   });
@@ -164,8 +169,61 @@ describe('Videos API', () => {
         category: '개발',
         visibility: 'PUBLIC',
         status: 'DRAFT',
+        source: 'LOCAL',
       },
     });
+  });
+
+  it('creates a ready YouTube video from a watch URL', async () => {
+    prisma.video.create.mockResolvedValueOnce({
+      id: 'youtube-1',
+      status: 'READY',
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/api/videos')
+      .send({
+        title: 'YouTube Import',
+        description: 'Embedded from YouTube',
+        category: '개발',
+        channelId: channel.id,
+        source: 'YOUTUBE',
+        externalUrl: 'https://youtu.be/Fs9w91F6CQQ',
+      })
+      .expect(201);
+
+    expect(response.body).toEqual({
+      id: 'youtube-1',
+      status: 'READY',
+    });
+    expect(prisma.video.create).toHaveBeenLastCalledWith({
+      data: {
+        channelId: channel.id,
+        title: 'YouTube Import',
+        description: 'Embedded from YouTube',
+        category: '개발',
+        visibility: 'PUBLIC',
+        status: 'READY',
+        source: 'YOUTUBE',
+        externalUrl: 'https://youtu.be/Fs9w91F6CQQ',
+        externalVideoId: 'Fs9w91F6CQQ',
+        publishedAt: expect.any(Date),
+      },
+    });
+  });
+
+  it('rejects invalid YouTube URLs', async () => {
+    await request(app.getHttpServer())
+      .post('/api/videos')
+      .send({
+        title: 'Invalid YouTube Import',
+        description: 'Nope',
+        category: '개발',
+        channelId: channel.id,
+        source: 'YOUTUBE',
+        externalUrl: 'https://example.com/video',
+      })
+      .expect(400);
   });
 
   it('increments a video view count', async () => {

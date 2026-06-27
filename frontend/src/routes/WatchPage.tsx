@@ -250,16 +250,27 @@ export function WatchPage() {
   return (
     <div className="watch-layout">
       <section className="watch-main">
-        <video
-          className="player"
-          controls
-          controlsList="nodownload"
-          disablePictureInPicture
-          poster={video.thumbnailUrl}
-          src={video.videoUrl}
-          onContextMenu={(event) => event.preventDefault()}
-          onPlay={handlePlaybackStarted}
-        />
+        {video.source === "YOUTUBE" && video.embedUrl ? (
+          <iframe
+            className="player youtube-player"
+            src={video.embedUrl}
+            title={video.title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            onLoad={handlePlaybackStarted}
+          />
+        ) : (
+          <video
+            className="player"
+            controls
+            controlsList="nodownload"
+            disablePictureInPicture
+            poster={video.thumbnailUrl}
+            src={video.videoUrl}
+            onContextMenu={(event) => event.preventDefault()}
+            onPlay={handlePlaybackStarted}
+          />
+        )}
         {isEditing ? (
           <form className="video-edit-form" onSubmit={handleEditSubmit}>
             <label>

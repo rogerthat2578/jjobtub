@@ -17,6 +17,7 @@ export function toVideoListItem(video: VideoWithChannel) {
       avatarUrl: video.channel.avatarUrl,
     },
     views: video.viewCount,
+    source: video.source,
     uploadedAt: (video.publishedAt ?? video.createdAt).toISOString(),
     durationSeconds: video.durationSeconds,
     category: video.category,
@@ -32,6 +33,11 @@ export function toVideoDetail(video: VideoWithChannel, viewerState: VideoViewerS
     likeCount: video.likeCount,
     likedByMe: Boolean(viewerState.likedByMe),
     streamUrl: `/api/videos/${video.id}/stream`,
+    embedUrl:
+      video.source === 'YOUTUBE' && video.externalVideoId
+        ? `https://www.youtube.com/embed/${video.externalVideoId}`
+        : null,
+    externalUrl: video.externalUrl,
     channel: {
       id: video.channel.id,
       name: video.channel.name,

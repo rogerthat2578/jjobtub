@@ -14,7 +14,7 @@ describe('Video file upload and streaming API', () => {
 
   const prisma = {
     video: {
-      findUnique: jest.fn().mockResolvedValue({ id: 'video-1' }),
+      findUnique: jest.fn().mockResolvedValue({ id: 'video-1', source: 'LOCAL' }),
       update: jest.fn().mockResolvedValue({ id: 'video-1', status: 'READY' }),
     },
     videoFile: {
