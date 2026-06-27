@@ -6,6 +6,8 @@ export type Channel = {
   bannerUrl: string;
   subscribers: string;
   subscribersCount?: number;
+  videoCount?: number;
+  joinedAt?: string;
   description: string;
   subscribedByMe?: boolean;
 };

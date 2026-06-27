@@ -14,12 +14,14 @@ export class VideosController {
     @Query('q') q?: string,
     @Query('category') category?: string,
     @Query('channelId') channelId?: string,
+    @Query('sort') sort?: string,
     @Query('limit') limit?: string,
   ) {
     return this.videosService.listVideos({
       q,
       category,
       channelId,
+      sort,
       limit: limit ? Number(limit) : undefined,
     });
   }

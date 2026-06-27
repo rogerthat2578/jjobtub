@@ -16,4 +16,5 @@ export type Video = {
   likedByMe?: boolean;
   viewsCount?: number;
   visibility?: string;
+  status?: string;
 };

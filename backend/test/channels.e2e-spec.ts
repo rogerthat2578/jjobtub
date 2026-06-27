@@ -36,6 +36,13 @@ const video = {
   channel,
 };
 
+const privateVideo = {
+  ...video,
+  id: 'video-private',
+  title: 'Private Channel Video',
+  visibility: 'PRIVATE',
+};
+
 describe('Channels API', () => {
   let app: INestApplication;
   const prisma = {
@@ -45,6 +52,7 @@ describe('Channels API', () => {
     },
     video: {
       findMany: jest.fn().mockResolvedValue([video]),
+      count: jest.fn().mockResolvedValue(2),
     },
     session: {
       findUnique: jest.fn().mockResolvedValue({
@@ -73,6 +81,7 @@ describe('Channels API', () => {
     prisma.channel.findUnique.mockResolvedValue(channel);
     prisma.channel.update.mockResolvedValue({ ...channel, subscriberCount: 23 });
     prisma.video.findMany.mockResolvedValue([video]);
+    prisma.video.count.mockResolvedValue(2);
     prisma.session.findUnique.mockResolvedValue({
       id: 'session-1',
       userId: 'user-2',
@@ -112,6 +121,8 @@ describe('Channels API', () => {
       name: 'Channel API',
       description: 'Channel endpoint tests',
       subscriberCount: 22,
+      videoCount: 2,
+      createdAt: '2026-06-26T01:00:00.000Z',
     });
   });
 
@@ -122,6 +133,35 @@ describe('Channels API', () => {
     expect(response.body.items[0]).toMatchObject({
       title: 'Channel Video',
       channel: { id: channel.id, name: 'Channel API' },
+    });
+  });
+
+  it('returns private and processing videos when the channel owner requests their channel videos', async () => {
+    prisma.session.findUnique.mockResolvedValueOnce({
+      id: 'session-owner',
+      userId: 'user-1',
+      token: 'owner-token',
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      createdAt: new Date('2026-06-26T00:00:00.000Z'),
+      user: {
+        id: 'user-1',
+        email: 'owner@jjobtub.local',
+        displayName: 'Owner',
+        avatarUrl: null,
+      },
+    });
+    prisma.video.findMany.mockResolvedValueOnce([video, privateVideo]);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/channels/channel-1/videos')
+      .set('Cookie', 'jjobtub_session=owner-token')
+      .expect(200);
+
+    expect(response.body.items).toHaveLength(2);
+    expect(prisma.video.findMany).toHaveBeenCalledWith({
+      where: { channelId: 'channel-1' },
+      include: { channel: true },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
     });
   });
 

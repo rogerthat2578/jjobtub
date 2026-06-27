@@ -158,6 +158,43 @@ describe('Videos API', () => {
     expect(response.body.nextCursor).toBeNull();
   });
 
+  it('searches by title, description, category, and channel name', async () => {
+    await request(app.getHttpServer()).get('/api/videos?q=testing').expect(200);
+
+    expect(prisma.video.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { title: { contains: 'testing', mode: 'insensitive' } },
+            { description: { contains: 'testing', mode: 'insensitive' } },
+            { category: { contains: 'testing', mode: 'insensitive' } },
+            { channel: { name: { contains: 'testing', mode: 'insensitive' } } },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it('sorts videos by views', async () => {
+    await request(app.getHttpServer()).get('/api/videos?sort=views').expect(200);
+
+    expect(prisma.video.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ viewCount: 'desc' }, { publishedAt: 'desc' }, { createdAt: 'desc' }],
+      }),
+    );
+  });
+
+  it('sorts videos by likes', async () => {
+    await request(app.getHttpServer()).get('/api/videos?sort=likes').expect(200);
+
+    expect(prisma.video.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ likeCount: 'desc' }, { publishedAt: 'desc' }, { createdAt: 'desc' }],
+      }),
+    );
+  });
+
   it('lists videos from subscribed channels for the logged-in user', async () => {
     prisma.channelSubscription.findMany.mockResolvedValueOnce([{ channelId: channel.id }]);
 

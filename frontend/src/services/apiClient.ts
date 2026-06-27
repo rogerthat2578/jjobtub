@@ -22,6 +22,8 @@ type ApiChannel = {
   avatarUrl?: string | null;
   bannerUrl?: string | null;
   subscriberCount?: number;
+  videoCount?: number;
+  createdAt?: string;
   subscribedByMe?: boolean;
 };
 
@@ -35,6 +37,8 @@ type ApiVideoListItem = {
   uploadedAt: string;
   durationSeconds: number;
   category: string;
+  visibility?: string;
+  status?: string;
 };
 
 type ApiVideoDetail = ApiVideoListItem & {
@@ -76,7 +80,7 @@ export type VideoListResult = {
   channelsById: Record<string, Channel>;
 };
 
-export async function fetchVideos(params: { q?: string; category?: string; channelId?: string } = {}) {
+export async function fetchVideos(params: { q?: string; category?: string; channelId?: string; sort?: string } = {}) {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value) {
@@ -363,6 +367,7 @@ function mapVideo(item: ApiVideoListItem | ApiVideoDetail): Video {
     likedByMe: "likedByMe" in item ? item.likedByMe : undefined,
     viewsCount: item.views,
     visibility: "visibility" in item ? item.visibility : undefined,
+    status: "status" in item ? item.status : undefined,
   };
 }
 
@@ -375,6 +380,8 @@ function mapChannel(channel: ApiChannel): Channel {
     bannerUrl: channel.bannerUrl ?? "",
     subscribers: (channel.subscriberCount ?? 0).toLocaleString(),
     subscribersCount: channel.subscriberCount,
+    videoCount: channel.videoCount,
+    joinedAt: channel.createdAt ? formatDate(channel.createdAt) : undefined,
     description: channel.description ?? "",
     subscribedByMe: channel.subscribedByMe,
   };

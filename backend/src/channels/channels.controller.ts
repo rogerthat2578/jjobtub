@@ -13,8 +13,8 @@ export class ChannelsController {
   }
 
   @Get(':id/videos')
-  getChannelVideos(@Param('id') id: string) {
-    return this.channelsService.getChannelVideos(id);
+  getChannelVideos(@Param('id') id: string, @Req() request: Request) {
+    return this.channelsService.getChannelVideos(id, request);
   }
 
   @Patch(':id')

@@ -22,18 +22,26 @@ export class VideosService {
     private readonly thumbnails: VideoThumbnailService,
   ) {}
 
-  async listVideos(query: { q?: string; category?: string; channelId?: string; limit?: number }) {
+  async listVideos(query: { q?: string; category?: string; channelId?: string; sort?: string; limit?: number }) {
     const limit = Number.isFinite(query.limit) ? Math.min(Math.max(query.limit ?? 24, 1), 50) : 24;
+    const search = query.q?.trim();
     const videos = await this.prisma.video.findMany({
       where: {
         status: VideoStatus.READY,
         visibility: 'PUBLIC',
         category: query.category,
         channelId: query.channelId,
-        title: query.q ? { contains: query.q, mode: 'insensitive' } : undefined,
+        OR: search
+          ? [
+              { title: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+              { category: { contains: search, mode: 'insensitive' } },
+              { channel: { name: { contains: search, mode: 'insensitive' } } },
+            ]
+          : undefined,
       },
       include: { channel: true },
-      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+      orderBy: videoOrderBy(query.sort),
       take: limit,
     });
 
@@ -531,4 +539,14 @@ function thumbnailMimeType(extension: string) {
     return 'image/png';
   }
   return 'image/webp';
+}
+
+function videoOrderBy(sort?: string) {
+  if (sort === 'views') {
+    return [{ viewCount: 'desc' as const }, { publishedAt: 'desc' as const }, { createdAt: 'desc' as const }];
+  }
+  if (sort === 'likes') {
+    return [{ likeCount: 'desc' as const }, { publishedAt: 'desc' as const }, { createdAt: 'desc' as const }];
+  }
+  return [{ publishedAt: 'desc' as const }, { createdAt: 'desc' as const }];
 }

@@ -17,6 +17,7 @@ export class ChannelsService {
     if (!channel) {
       throw new NotFoundException('Channel not found');
     }
+    const videoCount = await this.prisma.video.count({ where: { channelId: id, status: 'READY', visibility: 'PUBLIC' } });
 
     return {
       id: channel.id,
@@ -25,14 +26,20 @@ export class ChannelsService {
       avatarUrl: channel.avatarUrl,
       bannerUrl: channel.bannerUrl,
       subscriberCount: channel.subscriberCount,
+      videoCount,
       createdAt: channel.createdAt.toISOString(),
     };
   }
 
-  async getChannelVideos(id: string) {
-    await this.getChannel(id);
+  async getChannelVideos(id: string, request?: Request) {
+    const channel = await this.prisma.channel.findUnique({ where: { id } });
+    if (!channel) {
+      throw new NotFoundException('Channel not found');
+    }
+    const user = request ? await this.authService.getCurrentUser(request) : null;
+    const isOwner = Boolean(user && channel.ownerId === user.id);
     const videos = await this.prisma.video.findMany({
-      where: { channelId: id, status: 'READY', visibility: 'PUBLIC' },
+      where: isOwner ? { channelId: id } : { channelId: id, status: 'READY', visibility: 'PUBLIC' },
       include: { channel: true },
       orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
     });

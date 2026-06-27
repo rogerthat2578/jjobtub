@@ -557,6 +557,25 @@ img {
   margin: 8px 0 0;
 }
 
+.sort-control {
+  display: inline-grid;
+  gap: 6px;
+  min-width: 150px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.sort-control select {
+  min-height: 38px;
+  border: 1px solid #d6d3d1;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: #ffffff;
+  font: inherit;
+}
+
 .empty-state {
   margin: 0;
   padding: 26px;
@@ -973,6 +992,96 @@ img {
   border-color: var(--ink);
 }
 
+.channel-summary {
+  display: grid;
+  gap: 6px;
+}
+
+.channel-stats {
+  font-weight: 700;
+}
+
+.channel-tabs {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.channel-tabs button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+}
+
+.channel-tabs button:hover,
+.channel-tabs button.active {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.channel-info-panel {
+  display: grid;
+  gap: 18px;
+  max-width: 760px;
+}
+
+.channel-info-panel h2,
+.channel-info-panel p,
+.channel-info-grid {
+  margin: 0;
+}
+
+.channel-info-panel p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.channel-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.channel-info-grid div {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.channel-info-grid dt {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.channel-info-grid dd {
+  margin: 6px 0 0;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.video-state-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  color: #7c2d12;
+  background: #ffedd5;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .upload-page {
   max-width: 760px;
   width: 100%;
@@ -1229,6 +1338,10 @@ img {
     width: fit-content;
   }
 
+  .channel-info-grid {
+    grid-template-columns: 1fr;
+  }
+
   .upload-form,
   .page-heading {
     max-width: 100%;
@@ -1304,5 +1417,9 @@ img {
 
   .channel-banner {
     height: 150px;
+  }
+
+  .channel-tabs {
+    overflow-x: auto;
   }
 }
