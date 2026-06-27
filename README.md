@@ -127,6 +127,8 @@ NestJS Backend API
 
 ## 데이터 모델 요약
 
+ERD 문서: [docs/database-erd.md](docs/database-erd.md)
+
 Prisma 모델:
 
 - `User`: 회원가입/로그인 사용자, 채널 소유자, 댓글 작성자
