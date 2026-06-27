@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import { AppLayout } from "./components/AppLayout";
+import { ScrollToTop } from "./components/ScrollToTop";
 import { ChannelPage } from "./routes/ChannelPage";
 import { HomePage } from "./routes/HomePage";
 import { SearchPage } from "./routes/SearchPage";
@@ -10,6 +11,7 @@ import { WatchPage } from "./routes/WatchPage";
 export default function App() {
   return (
     <AuthProvider>
+      <ScrollToTop />
       <AppLayout>
         <Routes>
           <Route path="/" element={<HomePage />} />
