@@ -67,6 +67,8 @@ describe('Videos API', () => {
     videoView: {
       findMany: jest.fn().mockResolvedValue([]),
       upsert: jest.fn().mockResolvedValue({ id: 'view-1', videoId: 'video-1', userId: 'user-1' }),
+      delete: jest.fn().mockResolvedValue({ id: 'view-1', videoId: 'video-1', userId: 'user-1' }),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     channel: {
       findUnique: jest.fn().mockResolvedValue(channel),
@@ -106,6 +108,9 @@ describe('Videos API', () => {
     prisma.channelSubscription.findMany.mockResolvedValue([]);
     prisma.channelSubscription.findUnique.mockResolvedValue(null);
     prisma.videoView.findMany.mockResolvedValue([]);
+    prisma.videoView.upsert.mockResolvedValue({ id: 'view-1', videoId: 'video-1', userId: 'user-1' });
+    prisma.videoView.delete.mockResolvedValue({ id: 'view-1', videoId: 'video-1', userId: 'user-1' });
+    prisma.videoView.deleteMany.mockResolvedValue({ count: 1 });
     prisma.videoFile.findMany.mockResolvedValue([{ storagePath: 'videos/video-1/original.mp4' }]);
     prisma.videoFile.findFirst.mockResolvedValue(null);
     prisma.session.findUnique.mockResolvedValue({
@@ -191,6 +196,42 @@ describe('Videos API', () => {
 
     expect(response.body.items).toHaveLength(1);
     expect(response.body.items[0]).toMatchObject({ id: 'video-1', title: 'First Video' });
+  });
+
+  it('removes a liked video from the library', async () => {
+    const response = await request(app.getHttpServer())
+      .delete('/api/videos/library/video-1')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(200);
+
+    expect(response.body).toEqual({ ok: true });
+    expect(prisma.videoLike.delete).toHaveBeenCalledWith({
+      where: { videoId_userId: { videoId: 'video-1', userId: 'user-1' } },
+    });
+  });
+
+  it('removes one video from history', async () => {
+    const response = await request(app.getHttpServer())
+      .delete('/api/videos/history/video-1')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(200);
+
+    expect(response.body).toEqual({ ok: true });
+    expect(prisma.videoView.delete).toHaveBeenCalledWith({
+      where: { videoId_userId: { videoId: 'video-1', userId: 'user-1' } },
+    });
+  });
+
+  it('clears video history', async () => {
+    const response = await request(app.getHttpServer())
+      .delete('/api/videos/history')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(200);
+
+    expect(response.body).toEqual({ ok: true, count: 1 });
+    expect(prisma.videoView.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1' },
+    });
   });
 
   it('returns video details', async () => {

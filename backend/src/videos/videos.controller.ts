@@ -34,9 +34,24 @@ export class VideosController {
     return this.videosService.listLibraryVideos(request);
   }
 
+  @Delete('library/:id')
+  removeLibraryVideo(@Param('id') id: string, @Req() request: Request) {
+    return this.videosService.removeLibraryVideo(id, request);
+  }
+
   @Get('history')
   listHistoryVideos(@Req() request: Request) {
     return this.videosService.listHistoryVideos(request);
+  }
+
+  @Delete('history')
+  clearHistory(@Req() request: Request) {
+    return this.videosService.clearHistory(request);
+  }
+
+  @Delete('history/:id')
+  removeHistoryVideo(@Param('id') id: string, @Req() request: Request) {
+    return this.videosService.removeHistoryVideo(id, request);
   }
 
   @Get(':id')

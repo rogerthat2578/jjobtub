@@ -8,6 +8,7 @@ import { StorageService } from '../storage/storage.service';
 import { StreamingService } from '../storage/streaming.service';
 import { CreateVideoDto } from './dto/create-video.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
+import { VideoThumbnailService } from './video-thumbnail.service';
 import { toVideoDetail, toVideoListItem } from './video-response';
 import { extractYouTubeVideoId } from './youtube-url';
 
@@ -18,6 +19,7 @@ export class VideosService {
     private readonly authService: AuthService,
     private readonly storage: StorageService,
     private readonly streaming: StreamingService,
+    private readonly thumbnails: VideoThumbnailService,
   ) {}
 
   async listVideos(query: { q?: string; category?: string; channelId?: string; limit?: number }) {
@@ -84,6 +86,20 @@ export class VideosService {
     };
   }
 
+  async removeLibraryVideo(id: string, request: Request) {
+    const user = await this.requireCurrentUser(request);
+    await this.prisma.videoLike.delete({
+      where: { videoId_userId: { videoId: id, userId: user.id } },
+    });
+    await this.prisma.video.update({
+      where: { id },
+      data: { likeCount: { decrement: 1 } },
+      select: { likeCount: true },
+    });
+
+    return { ok: true };
+  }
+
   async listHistoryVideos(request: Request) {
     const user = await this.requireCurrentUser(request);
     const views = await this.prisma.videoView.findMany({
@@ -100,6 +116,24 @@ export class VideosService {
         .map(toVideoListItem),
       nextCursor: null,
     };
+  }
+
+  async removeHistoryVideo(id: string, request: Request) {
+    const user = await this.requireCurrentUser(request);
+    await this.prisma.videoView.delete({
+      where: { videoId_userId: { videoId: id, userId: user.id } },
+    });
+
+    return { ok: true };
+  }
+
+  async clearHistory(request: Request) {
+    const user = await this.requireCurrentUser(request);
+    const result = await this.prisma.videoView.deleteMany({
+      where: { userId: user.id },
+    });
+
+    return { ok: true, count: result.count };
   }
 
   async getVideo(id: string, request?: Request) {
@@ -219,6 +253,7 @@ export class VideosService {
         sizeBytes: savedFile.sizeBytes,
       },
     });
+    await this.extractAndStoreThumbnail(id, savedFile.absolutePath);
     await this.prisma.video.update({
       where: { id },
       data: { status: 'READY' },
@@ -446,6 +481,31 @@ export class VideosService {
       throw new UnauthorizedException('Login required');
     }
     return user;
+  }
+
+  private async extractAndStoreThumbnail(videoId: string, inputPath: string) {
+    try {
+      const existingFiles = await this.prisma.videoFile.findMany({
+        where: { videoId, kind: 'THUMBNAIL' },
+        select: { storagePath: true },
+      });
+      const thumbnail = await this.thumbnails.extractFromVideo(videoId, inputPath);
+      await this.prisma.videoFile.deleteMany({
+        where: { videoId, kind: 'THUMBNAIL' },
+      });
+      await this.prisma.videoFile.create({
+        data: {
+          videoId,
+          kind: 'THUMBNAIL',
+          storagePath: thumbnail.storagePath,
+          mimeType: thumbnail.mimeType,
+          sizeBytes: thumbnail.sizeBytes,
+        },
+      });
+      await Promise.all(existingFiles.map((existingFile) => this.storage.deleteFile(existingFile.storagePath)));
+    } catch {
+      // Keep upload successful when thumbnail extraction fails; the fallback SVG remains available.
+    }
   }
 }
 

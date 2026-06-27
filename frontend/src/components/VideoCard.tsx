@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import type { ReactNode } from "react";
 import type { Channel } from "../types/channel";
 import type { Video } from "../types/video";
 
@@ -6,9 +7,10 @@ type VideoCardProps = {
   video: Video;
   channel: Channel;
   orientation?: "grid" | "list";
+  actionSlot?: ReactNode;
 };
 
-export function VideoCard({ video, channel, orientation = "grid" }: VideoCardProps) {
+export function VideoCard({ video, channel, orientation = "grid", actionSlot }: VideoCardProps) {
   return (
     <article className={`video-card video-card-${orientation}`}>
       <Link className="thumbnail-link" to={`/watch/${video.id}`}>
@@ -29,6 +31,7 @@ export function VideoCard({ video, channel, orientation = "grid" }: VideoCardPro
           <p>
             {video.views} · {video.uploadedAt}
           </p>
+          {actionSlot && <div className="video-card-actions">{actionSlot}</div>}
         </div>
       </div>
     </article>

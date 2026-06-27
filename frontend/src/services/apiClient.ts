@@ -103,6 +103,18 @@ export async function fetchHistoryVideos() {
   return mapVideoList(data.items);
 }
 
+export async function removeLibraryVideo(videoId: string) {
+  await request<{ ok: boolean }>(`/videos/library/${videoId}`, { method: "DELETE" });
+}
+
+export async function removeHistoryVideo(videoId: string) {
+  await request<{ ok: boolean }>(`/videos/history/${videoId}`, { method: "DELETE" });
+}
+
+export async function clearHistoryVideos() {
+  return request<{ ok: boolean; count: number }>("/videos/history", { method: "DELETE" });
+}
+
 export async function fetchVideo(id: string) {
   const item = await request<ApiVideoDetail>(`/videos/${id}`);
   return {

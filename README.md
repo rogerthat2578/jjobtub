@@ -173,9 +173,10 @@ DATABASE_URL="postgresql://jjobtub_app:jjobtub_dev_password@localhost:5432/jjobt
 API_PORT=4000
 STORAGE_ROOT="./storage"
 MAX_UPLOAD_BYTES=524288000
+FFMPEG_PATH="C:\\dev\\tools\\ffmpeg\\ffmpeg.exe"
 ```
 
-이 값을 `backend/.env`에 저장합니다. `.env`는 git에 올리지 않습니다.
+이 값을 `backend/.env`에 저장합니다. `.env`는 git에 올리지 않습니다. `FFMPEG_PATH`는 MP4 썸네일 자동 추출에 사용하며, 값이 없으면 서버는 `ffmpeg` 명령 또는 `C:\dev\tools\ffmpeg\ffmpeg.exe`를 순서대로 찾습니다.
 
 ### 2. 의존성 설치
 
@@ -268,6 +269,7 @@ npm run frontend:build
 - 업로드 파일 크기 초과 안내
 - 업로드 중 페이지 이탈 방지
 - MP4 영상 썸네일 이미지 업로드
+- ffmpeg 기반 MP4 영상 썸네일 자동 추출
 - YouTube 영상 썸네일 URL 사용
 - YouTube 링크 등록 및 iframe 재생
 - HTTP Range 기반 MP4 스트리밍
@@ -279,7 +281,9 @@ npm run frontend:build
 - 채널 구독 토글
 - 구독한 채널의 영상 목록
 - 좋아요한 영상 보관함
+- 보관함에서 좋아요 취소
 - 로그인 사용자 시청 기록
+- 시청 기록 단건 삭제 및 전체 삭제
 - 채널 소유자 영상 수정/삭제
 - 채널 이름/설명/아바타/배너 수정
 - 내 채널 페이지와 내가 올린 영상 목록
@@ -300,14 +304,6 @@ npm run frontend:build
 ## 앞으로의 작업 후보
 
 - 작업 메모: 완료되면 이 목록에서 제거합니다.
-- MP4 썸네일 자동 추출
-  - 현재는 썸네일 이미지를 직접 업로드해야 합니다.
-  - 다음 단계에서는 `ffmpeg` 설치 여부를 먼저 확인한 뒤, MP4 업로드 시 첫 프레임 또는 중간 프레임 썸네일을 자동 생성합니다.
-  - 외부 프로그램 설치가 필요하므로 진행 전 사용자에게 설치 요청/확인을 먼저 합니다.
-- 시청 기록/보관함 UX 보강
-  - 시청 기록 삭제
-  - 보관함에서 좋아요 취소
-  - 빈 상태 안내와 관리 동작 개선
 - 채널 페이지 고도화
   - 채널 홈 탭: 홈 / 영상 / 정보
   - 구독자 수, 영상 수, 가입일 표시 정리

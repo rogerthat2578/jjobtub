@@ -1,7 +1,9 @@
 import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
+import { execFileSync } from 'child_process';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
+import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import request = require('supertest');
@@ -11,6 +13,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 describe('Video file upload and streaming API', () => {
   let app: INestApplication;
   let storageRoot: string;
+  let sampleMp4: Buffer;
 
   const prisma = {
     video: {
@@ -37,6 +40,7 @@ describe('Video file upload and streaming API', () => {
       }),
     },
     videoFile: {
+      findMany: jest.fn().mockResolvedValue([]),
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       create: jest.fn().mockResolvedValue({
         id: 'file-1',
@@ -59,6 +63,7 @@ describe('Video file upload and streaming API', () => {
 
   beforeAll(async () => {
     storageRoot = await mkdtemp(join(tmpdir(), 'jjobtub-storage-'));
+    sampleMp4 = createTinyMp4(storageRoot);
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
@@ -117,6 +122,27 @@ describe('Video file upload and streaming API', () => {
     });
   });
 
+  it('extracts a thumbnail from an uploaded MP4 file', async () => {
+    await request(app.getHttpServer())
+      .post('/api/videos/video-1/upload')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .attach('file', sampleMp4, {
+        filename: 'sample.mp4',
+        contentType: 'video/mp4',
+      })
+      .expect(201);
+
+    expect(prisma.videoFile.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        videoId: 'video-1',
+        kind: 'THUMBNAIL',
+        mimeType: 'image/jpeg',
+        storagePath: 'videos/video-1/thumbnail.jpg',
+      }),
+    });
+    expect(existsSync(join(storageRoot, 'videos', 'video-1', 'thumbnail.jpg'))).toBe(true);
+  });
+
   it('streams a byte range from the original MP4 file', async () => {
     await mkdir(join(storageRoot, 'videos', 'video-1'), { recursive: true });
     await writeFile(join(storageRoot, 'videos', 'video-1', 'original.mp4'), Buffer.from('abcdef'));
@@ -133,3 +159,15 @@ describe('Video file upload and streaming API', () => {
     expect(response.body.toString()).toBe('bcd');
   });
 });
+
+function createTinyMp4(storageRoot: string) {
+  const ffmpegPath = process.env.FFMPEG_PATH || 'C:\\dev\\tools\\ffmpeg\\ffmpeg.exe';
+  const outputPath = join(storageRoot, 'tiny.mp4');
+  execFileSync(
+    ffmpegPath,
+    ['-y', '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:d=0.2', '-pix_fmt', 'yuv420p', outputPath],
+    { stdio: 'ignore' },
+  );
+
+  return require('fs').readFileSync(outputPath) as Buffer;
+}

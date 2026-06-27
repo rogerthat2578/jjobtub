@@ -10,7 +10,14 @@ import { PersonalVideoListPage } from "./routes/PersonalVideoListPage";
 import { SearchPage } from "./routes/SearchPage";
 import { UploadPage } from "./routes/UploadPage";
 import { WatchPage } from "./routes/WatchPage";
-import { fetchHistoryVideos, fetchLibraryVideos, fetchSubscribedVideos } from "./services/apiClient";
+import {
+  clearHistoryVideos,
+  fetchHistoryVideos,
+  fetchLibraryVideos,
+  fetchSubscribedVideos,
+  removeHistoryVideo,
+  removeLibraryVideo,
+} from "./services/apiClient";
 
 export default function App() {
   return (
@@ -42,6 +49,9 @@ export default function App() {
                   description="좋아요를 누른 영상을 다시 볼 수 있습니다."
                   emptyMessage="아직 보관함에 담긴 영상이 없습니다."
                   loadVideos={fetchLibraryVideos}
+                  removeVideo={removeLibraryVideo}
+                  removeLabel="보관함에서 제거"
+                  removeSuccessMessage="보관함에서 제거했습니다."
                 />
               }
             />
@@ -53,6 +63,11 @@ export default function App() {
                   description="최근 시청한 영상을 확인합니다."
                   emptyMessage="아직 시청 기록이 없습니다."
                   loadVideos={fetchHistoryVideos}
+                  removeVideo={removeHistoryVideo}
+                  removeLabel="기록 삭제"
+                  removeSuccessMessage="시청 기록에서 삭제했습니다."
+                  clearVideos={clearHistoryVideos}
+                  clearLabel="전체 기록 삭제"
                 />
               }
             />
