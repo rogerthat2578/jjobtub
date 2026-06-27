@@ -71,10 +71,18 @@ export class VideosService {
     });
   }
 
-  async createVideo(dto: CreateVideoDto) {
+  async createVideo(dto: CreateVideoDto, request: Request) {
+    const user = await this.authService.getCurrentUser(request);
+    if (!user) {
+      throw new UnauthorizedException('Login required');
+    }
+
     const channel = await this.prisma.channel.findUnique({ where: { id: dto.channelId } });
     if (!channel) {
       throw new NotFoundException('Channel not found');
+    }
+    if (channel.ownerId !== user.id) {
+      throw new ForbiddenException('Only the channel owner can create videos');
     }
 
     if (dto.source === 'YOUTUBE') {
@@ -121,11 +129,12 @@ export class VideosService {
     };
   }
 
-  async uploadOriginal(id: string, file: { buffer?: Buffer; mimetype?: string; originalname?: string; size?: number }) {
-    const video = await this.prisma.video.findUnique({ where: { id } });
-    if (!video) {
-      throw new NotFoundException('Video not found');
-    }
+  async uploadOriginal(
+    id: string,
+    file: { buffer?: Buffer; mimetype?: string; originalname?: string; size?: number },
+    request: Request,
+  ) {
+    const video = await this.assertVideoOwner(id, request);
     if (video.source !== 'LOCAL') {
       throw new BadRequestException('Only local videos can receive uploaded files');
     }
@@ -162,6 +171,49 @@ export class VideosService {
         mimeType: 'video/mp4',
         sizeBytes: savedFile.sizeBytes,
       },
+    };
+  }
+
+  async uploadThumbnail(
+    id: string,
+    file: { buffer?: Buffer; mimetype?: string; originalname?: string; size?: number },
+    request: Request,
+  ) {
+    const video = await this.assertVideoOwner(id, request);
+    if (video.source !== 'LOCAL') {
+      throw new BadRequestException('Only local videos can receive uploaded thumbnails');
+    }
+    if (!file?.buffer) {
+      throw new BadRequestException('Thumbnail image is required');
+    }
+
+    const extension = thumbnailExtension(file.mimetype, file.originalname);
+    if (!extension) {
+      throw new BadRequestException('Only JPG, PNG, or WebP thumbnails are supported');
+    }
+
+    const existingFiles = await this.prisma.videoFile.findMany({
+      where: { videoId: id, kind: 'THUMBNAIL' },
+      select: { storagePath: true },
+    });
+    const savedFile = await this.storage.saveThumbnail(id, file.buffer, extension);
+    await this.prisma.videoFile.deleteMany({
+      where: { videoId: id, kind: 'THUMBNAIL' },
+    });
+    await this.prisma.videoFile.create({
+      data: {
+        videoId: id,
+        kind: 'THUMBNAIL',
+        storagePath: savedFile.storagePath,
+        mimeType: file.mimetype ?? thumbnailMimeType(extension),
+        sizeBytes: savedFile.sizeBytes,
+      },
+    });
+    await Promise.all(existingFiles.map((existingFile) => this.storage.deleteFile(existingFile.storagePath)));
+
+    return {
+      videoId: id,
+      thumbnailUrl: `/api/videos/${id}/thumbnail`,
     };
   }
 
@@ -265,6 +317,23 @@ export class VideosService {
     };
   }
 
+  async getThumbnail(id: string): Promise<{ contentType: string; stream?: ReadStream; body?: string }> {
+    const file = await this.prisma.videoFile.findFirst({
+      where: { videoId: id, kind: 'THUMBNAIL' },
+    });
+    if (file) {
+      return {
+        contentType: file.mimeType,
+        stream: this.storage.createFileReadStream(file.storagePath),
+      };
+    }
+
+    return {
+      contentType: 'image/svg+xml',
+      body: this.getFallbackThumbnail(id),
+    };
+  }
+
   getFallbackThumbnail(id: string) {
     const label = id.slice(0, 8);
     return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
@@ -301,4 +370,28 @@ export class VideosService {
       throw new NotFoundException('Video not found');
     }
   }
+}
+
+function thumbnailExtension(mimeType?: string, originalName?: string) {
+  const loweredName = originalName?.toLowerCase() ?? '';
+  if (mimeType === 'image/jpeg' || mimeType === 'image/jpg' || loweredName.endsWith('.jpg') || loweredName.endsWith('.jpeg')) {
+    return 'jpg';
+  }
+  if (mimeType === 'image/png' || loweredName.endsWith('.png')) {
+    return 'png';
+  }
+  if (mimeType === 'image/webp' || loweredName.endsWith('.webp')) {
+    return 'webp';
+  }
+  return '';
+}
+
+function thumbnailMimeType(extension: string) {
+  if (extension === 'jpg') {
+    return 'image/jpeg';
+  }
+  if (extension === 'png') {
+    return 'image/png';
+  }
+  return 'image/webp';
 }

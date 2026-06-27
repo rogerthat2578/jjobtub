@@ -1,21 +1,43 @@
 import { LinkIcon, UploadCloud } from "lucide-react";
-import { DragEvent, FormEvent, useState } from "react";
+import { DragEvent, FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { createVideo, uploadVideoFile } from "../services/apiClient";
+import { useToast } from "../components/ToastProvider";
+import { ApiRequestError, createVideo, uploadVideoFileWithProgress, uploadVideoThumbnail } from "../services/apiClient";
+
+const MAX_UPLOAD_BYTES = 524288000;
 
 export function UploadPage() {
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
+  const { showToast } = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("개발");
   const [file, setFile] = useState<File | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [uploadMode, setUploadMode] = useState<"file" | "youtube">("file");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [thumbnailProgress, setThumbnailProgress] = useState(0);
+  const [failedVideoId, setFailedVideoId] = useState("");
+
+  useEffect(() => {
+    if (!isSubmitting) {
+      return;
+    }
+
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isSubmitting]);
 
   function selectFile(nextFile: File | undefined | null) {
     if (!nextFile) {
@@ -29,8 +51,36 @@ export function UploadPage() {
       setError("MP4 파일만 업로드할 수 있습니다.");
       return;
     }
+    if (nextFile.size > MAX_UPLOAD_BYTES) {
+      setFile(null);
+      setError("파일 크기가 500MB를 초과했습니다.");
+      return;
+    }
 
     setFile(nextFile);
+    setFailedVideoId("");
+    setError("");
+  }
+
+  function selectThumbnail(nextFile: File | undefined | null) {
+    if (!nextFile) {
+      setThumbnailFile(null);
+      return;
+    }
+
+    const isSupportedImage = ["image/jpeg", "image/png", "image/webp"].includes(nextFile.type);
+    if (!isSupportedImage) {
+      setThumbnailFile(null);
+      setError("썸네일은 JPG, PNG, WebP 이미지만 사용할 수 있습니다.");
+      return;
+    }
+    if (nextFile.size > 5 * 1024 * 1024) {
+      setThumbnailFile(null);
+      setError("썸네일 이미지는 5MB 이하만 사용할 수 있습니다.");
+      return;
+    }
+
+    setThumbnailFile(nextFile);
     setError("");
   }
 
@@ -72,6 +122,11 @@ export function UploadPage() {
 
     setIsSubmitting(true);
     setError("");
+    setUploadProgress(uploadMode === "youtube" ? 100 : 0);
+    setThumbnailProgress(0);
+    setFailedVideoId("");
+
+    let createdVideoId = "";
 
     try {
       const created = await createVideo({
@@ -82,12 +137,46 @@ export function UploadPage() {
         source: uploadMode === "youtube" ? "YOUTUBE" : "LOCAL",
         externalUrl: uploadMode === "youtube" ? youtubeUrl.trim() : undefined,
       });
+      createdVideoId = created.id;
       if (uploadMode === "file" && file) {
-        await uploadVideoFile(created.id, file);
+        await uploadVideoFileWithProgress(created.id, file, setUploadProgress);
+        if (thumbnailFile) {
+          await uploadVideoThumbnail(created.id, thumbnailFile, setThumbnailProgress);
+        }
       }
+      showToast(uploadMode === "youtube" ? "YouTube 영상이 등록되었습니다." : "영상 업로드가 완료되었습니다.", "success");
       navigate(`/watch/${created.id}`);
-    } catch {
-      setError(uploadMode === "youtube" ? "YouTube 링크 등록에 실패했습니다." : "영상 업로드에 실패했습니다.");
+    } catch (submitError) {
+      if (uploadMode === "file" && createdVideoId) {
+        setFailedVideoId(createdVideoId);
+      }
+      setError(toUploadErrorMessage(submitError, uploadMode));
+      showToast("업로드를 완료하지 못했습니다.", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleRetryUpload() {
+    if (!failedVideoId || !file) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+    setUploadProgress(0);
+    setThumbnailProgress(0);
+
+    try {
+      await uploadVideoFileWithProgress(failedVideoId, file, setUploadProgress);
+      if (thumbnailFile) {
+        await uploadVideoThumbnail(failedVideoId, thumbnailFile, setThumbnailProgress);
+      }
+      showToast("영상 업로드가 완료되었습니다.", "success");
+      navigate(`/watch/${failedVideoId}`);
+    } catch (retryError) {
+      setError(toUploadErrorMessage(retryError, "file"));
+      showToast("재시도에 실패했습니다.", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -153,17 +242,24 @@ export function UploadPage() {
           </select>
         </label>
         {uploadMode === "file" ? (
-          <label
-            className={`dropzone ${isDragging ? "dropzone-active" : ""}`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <UploadCloud size={28} />
-            <span>MP4 파일을 끌어다 놓거나 클릭해서 선택하세요.</span>
-            <small>{file ? file.name : "최대 500MB MP4 파일"}</small>
-            <input accept="video/mp4" type="file" onChange={(event) => selectFile(event.target.files?.[0])} />
-          </label>
+          <>
+            <label
+              className={`dropzone ${isDragging ? "dropzone-active" : ""}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <UploadCloud size={28} />
+              <span>MP4 파일을 끌어다 놓거나 클릭해서 선택하세요.</span>
+              <small>{file ? `${file.name} · ${formatFileSize(file.size)}` : "최대 500MB MP4 파일"}</small>
+              <input accept="video/mp4" type="file" onChange={(event) => selectFile(event.target.files?.[0])} />
+            </label>
+            <label>
+              <span>썸네일 이미지</span>
+              <input accept="image/jpeg,image/png,image/webp" type="file" onChange={(event) => selectThumbnail(event.target.files?.[0])} />
+              <small>{thumbnailFile ? `${thumbnailFile.name} · ${formatFileSize(thumbnailFile.size)}` : "선택 사항, JPG/PNG/WebP 5MB 이하"}</small>
+            </label>
+          </>
         ) : (
           <label>
             <span>YouTube 링크</span>
@@ -175,7 +271,24 @@ export function UploadPage() {
             />
           </label>
         )}
+        {isSubmitting && uploadMode === "file" && (
+          <div className="upload-progress">
+            <span>영상 업로드 {uploadProgress}%</span>
+            <progress max={100} value={uploadProgress} />
+            {thumbnailFile && (
+              <>
+                <span>썸네일 업로드 {thumbnailProgress}%</span>
+                <progress max={100} value={thumbnailProgress} />
+              </>
+            )}
+          </div>
+        )}
         {error && <p className="form-error">{error}</p>}
+        {failedVideoId && (
+          <button className="pill-button" type="button" onClick={handleRetryUpload} disabled={isSubmitting}>
+            실패한 업로드 재시도
+          </button>
+        )}
         <button className="primary-button" type="submit" disabled={isSubmitting || isLoading || !user}>
           <UploadCloud size={18} />
           {isSubmitting ? "처리 중" : uploadMode === "youtube" ? "링크 등록" : "업로드"}
@@ -183,4 +296,30 @@ export function UploadPage() {
       </form>
     </div>
   );
+}
+
+function toUploadErrorMessage(error: unknown, mode: "file" | "youtube") {
+  if (error instanceof ApiRequestError) {
+    if (error.status === 413) {
+      return "파일 크기가 서버 제한을 초과했습니다.";
+    }
+    if (error.status === 401) {
+      return "로그인 후 업로드할 수 있습니다.";
+    }
+    if (error.status === 403) {
+      return "내 채널에만 업로드할 수 있습니다.";
+    }
+    if (error.message) {
+      return error.message;
+    }
+  }
+
+  return mode === "youtube" ? "YouTube 링크 등록에 실패했습니다." : "영상 업로드에 실패했습니다.";
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+  }
+  return `${Math.max(1, Math.round(bytes / 1024))}KB`;
 }

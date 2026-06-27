@@ -10,7 +10,10 @@ export function toVideoListItem(video: VideoWithChannel) {
   return {
     id: video.id,
     title: video.title,
-    thumbnailUrl: `/api/videos/${video.id}/thumbnail`,
+    thumbnailUrl:
+      video.source === 'YOUTUBE' && video.externalVideoId
+        ? `https://img.youtube.com/vi/${video.externalVideoId}/hqdefault.jpg`
+        : `/api/videos/${video.id}/thumbnail`,
     channel: {
       id: video.channel.id,
       name: video.channel.name,

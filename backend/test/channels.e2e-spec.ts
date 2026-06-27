@@ -68,6 +68,27 @@ describe('Channels API', () => {
     },
   };
 
+  beforeEach(() => {
+    jest.resetAllMocks();
+    prisma.channel.findUnique.mockResolvedValue(channel);
+    prisma.channel.update.mockResolvedValue({ ...channel, subscriberCount: 23 });
+    prisma.video.findMany.mockResolvedValue([video]);
+    prisma.session.findUnique.mockResolvedValue({
+      id: 'session-1',
+      userId: 'user-2',
+      token: 'session-token',
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      createdAt: new Date('2026-06-26T00:00:00.000Z'),
+      user: {
+        id: 'user-2',
+        email: 'viewer@jjobtub.local',
+        displayName: 'Viewer',
+        avatarUrl: null,
+      },
+    });
+    prisma.channelSubscription.findUnique.mockResolvedValue(null);
+  });
+
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
@@ -102,6 +123,65 @@ describe('Channels API', () => {
       title: 'Channel Video',
       channel: { id: channel.id, name: 'Channel API' },
     });
+  });
+
+  it('updates channel details for the channel owner', async () => {
+    prisma.session.findUnique.mockResolvedValueOnce({
+      id: 'session-owner',
+      userId: 'user-1',
+      token: 'owner-token',
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      createdAt: new Date('2026-06-26T00:00:00.000Z'),
+      user: {
+        id: 'user-1',
+        email: 'owner@jjobtub.local',
+        displayName: 'Owner',
+        avatarUrl: null,
+      },
+    });
+    prisma.channel.update.mockResolvedValueOnce({
+      ...channel,
+      name: 'Updated Channel',
+      description: 'Updated description',
+      avatarUrl: 'https://example.com/avatar.png',
+      bannerUrl: 'https://example.com/banner.png',
+    });
+
+    const response = await request(app.getHttpServer())
+      .patch('/api/channels/channel-1')
+      .set('Cookie', 'jjobtub_session=owner-token')
+      .send({
+        name: 'Updated Channel',
+        description: 'Updated description',
+        avatarUrl: 'https://example.com/avatar.png',
+        bannerUrl: 'https://example.com/banner.png',
+      })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: 'channel-1',
+      name: 'Updated Channel',
+      description: 'Updated description',
+      avatarUrl: 'https://example.com/avatar.png',
+      bannerUrl: 'https://example.com/banner.png',
+    });
+    expect(prisma.channel.update).toHaveBeenCalledWith({
+      where: { id: 'channel-1' },
+      data: {
+        name: 'Updated Channel',
+        description: 'Updated description',
+        avatarUrl: 'https://example.com/avatar.png',
+        bannerUrl: 'https://example.com/banner.png',
+      },
+    });
+  });
+
+  it('rejects channel updates from non-owners', async () => {
+    await request(app.getHttpServer())
+      .patch('/api/channels/channel-1')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .send({ name: 'Nope' })
+      .expect(403);
   });
 
   it('subscribes the logged-in user to a channel', async () => {

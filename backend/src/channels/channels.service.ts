@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { toVideoListItem } from '../videos/video-response';
+import { UpdateChannelDto } from './dto/update-channel.dto';
 
 @Injectable()
 export class ChannelsService {
@@ -39,6 +40,31 @@ export class ChannelsService {
     return {
       items: videos.map(toVideoListItem),
       nextCursor: null,
+    };
+  }
+
+  async updateChannel(id: string, dto: UpdateChannelDto, request: Request) {
+    const channel = await this.assertChannelOwner(id, request);
+    const data: { name?: string; description?: string; avatarUrl?: string | null; bannerUrl?: string | null } = {};
+
+    if (dto.name !== undefined) data.name = dto.name.trim();
+    if (dto.description !== undefined) data.description = dto.description.trim();
+    if (dto.avatarUrl !== undefined) data.avatarUrl = dto.avatarUrl.trim() || null;
+    if (dto.bannerUrl !== undefined) data.bannerUrl = dto.bannerUrl.trim() || null;
+
+    const updatedChannel = await this.prisma.channel.update({
+      where: { id: channel.id },
+      data,
+    });
+
+    return {
+      id: updatedChannel.id,
+      name: updatedChannel.name,
+      description: updatedChannel.description,
+      avatarUrl: updatedChannel.avatarUrl,
+      bannerUrl: updatedChannel.bannerUrl,
+      subscriberCount: updatedChannel.subscriberCount,
+      createdAt: updatedChannel.createdAt.toISOString(),
     };
   }
 
@@ -79,5 +105,22 @@ export class ChannelsService {
     });
 
     return { subscribed: true, subscribers: updatedChannel.subscriberCount };
+  }
+
+  private async assertChannelOwner(id: string, request: Request) {
+    const user = await this.authService.getCurrentUser(request);
+    if (!user) {
+      throw new UnauthorizedException('Login required');
+    }
+
+    const channel = await this.prisma.channel.findUnique({ where: { id } });
+    if (!channel) {
+      throw new NotFoundException('Channel not found');
+    }
+    if (channel.ownerId !== user.id) {
+      throw new ForbiddenException('Only the channel owner can manage this channel');
+    }
+
+    return channel;
   }
 }

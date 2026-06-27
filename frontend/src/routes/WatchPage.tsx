@@ -3,16 +3,20 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { CommentList } from "../components/CommentList";
+import { useToast } from "../components/ToastProvider";
 import { VideoCard } from "../components/VideoCard";
 import {
   createComment,
+  deleteComment,
   deleteVideo,
   fetchComments,
   fetchVideo,
   fetchVideos,
   incrementVideoView,
+  toggleCommentLike,
   toggleChannelSubscription,
   toggleVideoLike,
+  updateComment,
   updateVideo,
   type VideoListResult,
 } from "../services/apiClient";
@@ -24,6 +28,7 @@ export function WatchPage() {
   const { videoId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [video, setVideo] = useState<Video | null>(null);
   const [channel, setChannel] = useState<Channel | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -190,6 +195,16 @@ export function WatchPage() {
     }
   }
 
+  async function handleShare() {
+    const shareUrl = window.location.href;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      showToast("영상 링크를 복사했습니다.", "success");
+    } catch {
+      showToast("링크 복사에 실패했습니다.", "error");
+    }
+  }
+
   async function handleCommentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!videoId || isSubmittingComment) {
@@ -231,6 +246,33 @@ export function WatchPage() {
         comment.id === parentId ? { ...comment, replies: [...comment.replies, createdReply] } : comment,
       ),
     );
+  }
+
+  async function handleCommentUpdate(commentId: string, body: string) {
+    if (!videoId || !user) {
+      throw new Error("Login required");
+    }
+
+    const updatedComment = await updateComment(videoId, commentId, body);
+    setComments((currentComments) => updateCommentInTree(currentComments, updatedComment));
+  }
+
+  async function handleCommentDelete(commentId: string) {
+    if (!user) {
+      throw new Error("Login required");
+    }
+
+    await deleteComment(commentId);
+    setComments((currentComments) => removeCommentFromTree(currentComments, commentId));
+  }
+
+  async function handleCommentLike(commentId: string) {
+    if (!user) {
+      throw new Error("Login required");
+    }
+
+    const result = await toggleCommentLike(commentId);
+    setComments((currentComments) => updateCommentReaction(currentComments, commentId, result));
   }
 
   if (notFound) {
@@ -333,9 +375,9 @@ export function WatchPage() {
               aria-pressed={Boolean(video.likedByMe)}
             >
               <ThumbsUp size={17} />
-              {video.likes}
+              {isLikeBusy ? "처리 중" : video.likes}
             </button>
-            <button className="pill-button" type="button">
+            <button className="pill-button" type="button" onClick={handleShare}>
               <Share2 size={17} />
               공유
             </button>
@@ -358,7 +400,7 @@ export function WatchPage() {
             aria-pressed={Boolean(channel.subscribedByMe)}
           >
             <Bell size={17} />
-            {channel.subscribedByMe ? "구독 중" : "구독"}
+            {isSubscriptionBusy ? "처리 중" : channel.subscribedByMe ? "구독 중" : "구독"}
           </button>
         </div>
 
@@ -389,7 +431,15 @@ export function WatchPage() {
               </button>
             </div>
           </form>
-          <CommentList comments={comments} canReply={Boolean(user)} onReply={handleReply} />
+          <CommentList
+            comments={comments}
+            currentUserId={user?.id}
+            canReply={Boolean(user)}
+            onReply={handleReply}
+            onUpdate={handleCommentUpdate}
+            onDelete={handleCommentDelete}
+            onLike={handleCommentLike}
+          />
         </section>
       </section>
 
@@ -405,4 +455,34 @@ export function WatchPage() {
       </aside>
     </div>
   );
+}
+
+function updateCommentInTree(comments: Comment[], updatedComment: Comment): Comment[] {
+  return comments.map((comment) => {
+    if (comment.id === updatedComment.id) {
+      return { ...updatedComment, replies: comment.replies };
+    }
+
+    return { ...comment, replies: updateCommentInTree(comment.replies, updatedComment) };
+  });
+}
+
+function removeCommentFromTree(comments: Comment[], commentId: string): Comment[] {
+  return comments
+    .filter((comment) => comment.id !== commentId)
+    .map((comment) => ({ ...comment, replies: removeCommentFromTree(comment.replies, commentId) }));
+}
+
+function updateCommentReaction(
+  comments: Comment[],
+  commentId: string,
+  reaction: { liked: boolean; likes: number },
+): Comment[] {
+  return comments.map((comment) => {
+    if (comment.id === commentId) {
+      return { ...comment, likedByMe: reaction.liked, likes: reaction.likes };
+    }
+
+    return { ...comment, replies: updateCommentReaction(comment.replies, commentId, reaction) };
+  });
 }

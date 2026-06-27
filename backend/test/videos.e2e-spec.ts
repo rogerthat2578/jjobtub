@@ -36,6 +36,14 @@ const video = {
   channel,
 };
 
+const youtubeVideo = {
+  ...video,
+  id: 'youtube-video-1',
+  source: 'YOUTUBE',
+  externalUrl: 'https://youtu.be/Fs9w91F6CQQ',
+  externalVideoId: 'Fs9w91F6CQQ',
+};
+
 describe('Videos API', () => {
   let app: INestApplication;
   const prisma = {
@@ -71,8 +79,36 @@ describe('Videos API', () => {
     },
     videoFile: {
       findMany: jest.fn().mockResolvedValue([{ storagePath: 'videos/video-1/original.mp4' }]),
+      findFirst: jest.fn().mockResolvedValue(null),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      create: jest.fn().mockResolvedValue({ id: 'file-1' }),
     },
   };
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    prisma.video.findMany.mockResolvedValue([video]);
+    prisma.video.findUnique.mockResolvedValue(video);
+    prisma.video.create.mockResolvedValue({ id: 'draft-1', status: 'DRAFT' });
+    prisma.video.update.mockResolvedValue({ ...video, viewCount: 8 });
+    prisma.channel.findUnique.mockResolvedValue(channel);
+    prisma.videoLike.findUnique.mockResolvedValue(null);
+    prisma.videoFile.findMany.mockResolvedValue([{ storagePath: 'videos/video-1/original.mp4' }]);
+    prisma.videoFile.findFirst.mockResolvedValue(null);
+    prisma.session.findUnique.mockResolvedValue({
+      id: 'session-1',
+      userId: 'user-1',
+      token: 'session-token',
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      createdAt: new Date('2026-06-26T00:00:00.000Z'),
+      user: {
+        id: 'user-1',
+        email: 'creator@jjobtub.local',
+        displayName: 'Test Creator',
+        avatarUrl: null,
+      },
+    });
+  });
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -117,9 +153,18 @@ describe('Videos API', () => {
     });
   });
 
-  it('creates a draft video', async () => {
+  it('uses the YouTube thumbnail URL for YouTube videos', async () => {
+    prisma.video.findUnique.mockResolvedValueOnce(youtubeVideo);
+
+    const response = await request(app.getHttpServer()).get('/api/videos/youtube-video-1').expect(200);
+
+    expect(response.body.thumbnailUrl).toBe('https://img.youtube.com/vi/Fs9w91F6CQQ/hqdefault.jpg');
+  });
+
+  it('creates a draft video for the logged-in channel owner', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/videos')
+      .set('Cookie', 'jjobtub_session=session-token')
       .send({
         title: 'New Draft',
         description: 'Draft description',
@@ -149,6 +194,7 @@ describe('Videos API', () => {
   it('creates a public draft video when visibility is omitted', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/videos')
+      .set('Cookie', 'jjobtub_session=session-token')
       .send({
         title: 'Default Public Draft',
         description: 'Draft description',
@@ -182,6 +228,7 @@ describe('Videos API', () => {
 
     const response = await request(app.getHttpServer())
       .post('/api/videos')
+      .set('Cookie', 'jjobtub_session=session-token')
       .send({
         title: 'YouTube Import',
         description: 'Embedded from YouTube',
@@ -215,6 +262,7 @@ describe('Videos API', () => {
   it('rejects invalid YouTube URLs', async () => {
     await request(app.getHttpServer())
       .post('/api/videos')
+      .set('Cookie', 'jjobtub_session=session-token')
       .send({
         title: 'Invalid YouTube Import',
         description: 'Nope',
@@ -224,6 +272,54 @@ describe('Videos API', () => {
         externalUrl: 'https://example.com/video',
       })
       .expect(400);
+  });
+
+  it('rejects video creation without login', async () => {
+    prisma.session.findUnique.mockResolvedValueOnce(null);
+
+    await request(app.getHttpServer())
+      .post('/api/videos')
+      .send({
+        title: 'No Login',
+        description: 'Draft description',
+        category: '개발',
+        channelId: channel.id,
+      })
+      .expect(401);
+  });
+
+  it('rejects video creation for another user channel', async () => {
+    prisma.channel.findUnique.mockResolvedValueOnce({ ...channel, ownerId: 'other-user' });
+
+    await request(app.getHttpServer())
+      .post('/api/videos')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .send({
+        title: 'Wrong Channel',
+        description: 'Draft description',
+        category: '개발',
+        channelId: channel.id,
+      })
+      .expect(403);
+  });
+
+  it('rejects original upload without login', async () => {
+    prisma.session.findUnique.mockResolvedValueOnce(null);
+
+    await request(app.getHttpServer())
+      .post('/api/videos/video-1/upload')
+      .attach('file', Buffer.from('fake mp4'), { filename: 'test.mp4', contentType: 'video/mp4' })
+      .expect(401);
+  });
+
+  it('rejects original upload for a non-owner', async () => {
+    prisma.video.findUnique.mockResolvedValueOnce({ ...video, channel: { ...channel, ownerId: 'other-user' } });
+
+    await request(app.getHttpServer())
+      .post('/api/videos/video-1/upload')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .attach('file', Buffer.from('fake mp4'), { filename: 'test.mp4', contentType: 'video/mp4' })
+      .expect(403);
   });
 
   it('increments a video view count', async () => {

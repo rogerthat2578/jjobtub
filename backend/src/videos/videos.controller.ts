@@ -30,8 +30,8 @@ export class VideosController {
   }
 
   @Post()
-  createVideo(@Body() dto: CreateVideoDto) {
-    return this.videosService.createVideo(dto);
+  createVideo(@Body() dto: CreateVideoDto, @Req() request: Request) {
+    return this.videosService.createVideo(dto, request);
   }
 
   @Post(':id/view')
@@ -56,8 +56,14 @@ export class VideosController {
 
   @Post(':id/upload')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 524288000 } }))
-  uploadOriginal(@Param('id') id: string, @UploadedFile() file: any) {
-    return this.videosService.uploadOriginal(id, file);
+  uploadOriginal(@Param('id') id: string, @UploadedFile() file: any, @Req() request: Request) {
+    return this.videosService.uploadOriginal(id, file, request);
+  }
+
+  @Post(':id/thumbnail')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5242880 } }))
+  uploadThumbnail(@Param('id') id: string, @UploadedFile() file: any, @Req() request: Request) {
+    return this.videosService.uploadThumbnail(id, file, request);
   }
 
   @Get(':id/stream')
@@ -74,11 +80,13 @@ export class VideosController {
   }
 
   @Get(':id/thumbnail')
-  getThumbnail(@Param('id') id: string, @Res({ passthrough: true }) response: Response) {
+  async getThumbnail(@Param('id') id: string, @Res({ passthrough: true }) response: Response) {
+    const thumbnail = await this.videosService.getThumbnail(id);
     response.set({
-      'Content-Type': 'image/svg+xml',
+      'Content-Type': thumbnail.contentType,
       'Cache-Control': 'public, max-age=300',
     });
-    return this.videosService.getFallbackThumbnail(id);
+
+    return thumbnail.stream ? new StreamableFile(thumbnail.stream) : thumbnail.body;
   }
 }

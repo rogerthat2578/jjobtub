@@ -52,6 +52,7 @@ type ApiComment = {
   id: string;
   body: string;
   likeCount: number;
+  likedByMe?: boolean;
   createdAt: string;
   parentId: string | null;
   author: {
@@ -118,6 +119,23 @@ export async function createComment(videoId: string, body: string, parentId?: st
   return mapComment(videoId, comment);
 }
 
+export async function updateComment(videoId: string, commentId: string, body: string) {
+  const comment = await request<ApiComment>(`/comments/${commentId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+  return mapComment(videoId, comment);
+}
+
+export async function deleteComment(commentId: string) {
+  await request<{ ok: boolean }>(`/comments/${commentId}`, { method: "DELETE" });
+}
+
+export async function toggleCommentLike(commentId: string) {
+  return request<{ liked: boolean; likes: number }>(`/comments/${commentId}/like`, { method: "POST" });
+}
+
 export async function fetchCurrentUser() {
   const data = await request<{ user: ApiUser }>("/auth/me");
   return mapUser(data.user);
@@ -161,12 +179,39 @@ export async function createVideo(input: {
 }
 
 export async function uploadVideoFile(videoId: string, file: File) {
+  return uploadFileWithProgress<{ videoId: string; status: string }>(`/videos/${videoId}/upload`, file);
+}
+
+export async function uploadVideoThumbnail(videoId: string, file: File, onProgress?: (progress: number) => void) {
+  return uploadFileWithProgress<{ videoId: string; thumbnailUrl: string }>(`/videos/${videoId}/thumbnail`, file, onProgress);
+}
+
+export async function uploadVideoFileWithProgress(videoId: string, file: File, onProgress?: (progress: number) => void) {
+  return uploadFileWithProgress<{ videoId: string; status: string }>(`/videos/${videoId}/upload`, file, onProgress);
+}
+
+function uploadFileWithProgress<T>(path: string, file: File, onProgress?: (progress: number) => void) {
   const form = new FormData();
   form.append("file", file);
 
-  return request<{ videoId: string; status: string }>(`/videos/${videoId}/upload`, {
-    method: "POST",
-    body: form,
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE_URL}${path}`);
+    xhr.withCredentials = true;
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress?.(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText || "{}") as T);
+        return;
+      }
+      reject(new ApiRequestError(readXhrErrorMessage(xhr), xhr.status));
+    };
+    xhr.onerror = () => reject(new ApiRequestError("Network request failed", 0));
+    xhr.send(form);
   });
 }
 
@@ -180,6 +225,19 @@ export async function toggleVideoLike(videoId: string) {
 
 export async function toggleChannelSubscription(channelId: string) {
   return request<{ subscribed: boolean; subscribers: number }>(`/channels/${channelId}/subscribe`, { method: "POST" });
+}
+
+export async function updateChannel(
+  channelId: string,
+  input: { name?: string; description?: string; avatarUrl?: string; bannerUrl?: string },
+) {
+  return mapChannel(
+    await request<ApiChannel>(`/channels/${channelId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+  );
 }
 
 export async function updateVideo(
@@ -230,6 +288,22 @@ async function readErrorMessage(response: Response) {
     return body.message || body.error || text;
   } catch {
     return text;
+  }
+}
+
+function readXhrErrorMessage(xhr: XMLHttpRequest) {
+  if (!xhr.responseText) {
+    return `Request failed with ${xhr.status}`;
+  }
+
+  try {
+    const body = JSON.parse(xhr.responseText) as { message?: string | string[]; error?: string };
+    if (Array.isArray(body.message)) {
+      return body.message.join("\n");
+    }
+    return body.message || body.error || xhr.responseText;
+  } catch {
+    return xhr.responseText;
   }
 }
 
@@ -284,11 +358,13 @@ function mapComment(videoId: string, comment: ApiComment): Comment {
     id: comment.id,
     videoId,
     parentId: comment.parentId,
+    authorId: comment.author.id,
     author: comment.author.displayName,
     avatarUrl: comment.author.avatarUrl ?? "",
     body: comment.body,
     postedAt: formatDate(comment.createdAt),
     likes: comment.likeCount,
+    likedByMe: Boolean(comment.likedByMe),
     replies: (comment.replies ?? []).map((reply) => mapComment(videoId, reply)),
   };
 }

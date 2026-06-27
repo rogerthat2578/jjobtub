@@ -16,8 +16,26 @@ export class StorageService {
     return `videos/${videoId}/original.mp4`;
   }
 
+  thumbnailPath(videoId: string, extension: string) {
+    return `videos/${videoId}/thumbnail.${extension}`;
+  }
+
   async saveOriginalVideo(videoId: string, buffer: Buffer) {
     const storagePath = this.originalVideoPath(videoId);
+    const absolutePath = this.resolveStoragePath(storagePath);
+
+    await mkdir(dirname(absolutePath), { recursive: true });
+    await writeFile(absolutePath, buffer);
+
+    return {
+      storagePath,
+      absolutePath,
+      sizeBytes: buffer.length,
+    };
+  }
+
+  async saveThumbnail(videoId: string, buffer: Buffer, extension: string) {
+    const storagePath = this.thumbnailPath(videoId, extension);
     const absolutePath = this.resolveStoragePath(storagePath);
 
     await mkdir(dirname(absolutePath), { recursive: true });
@@ -45,6 +63,10 @@ export class StorageService {
 
   createReadStream(storagePath: string, range: { start: number; end: number }) {
     return createReadStream(this.resolveStoragePath(storagePath), range);
+  }
+
+  createFileReadStream(storagePath: string) {
+    return createReadStream(this.resolveStoragePath(storagePath));
   }
 
   async deleteFile(storagePath: string) {

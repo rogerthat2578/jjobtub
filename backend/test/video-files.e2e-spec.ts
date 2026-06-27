@@ -14,8 +14,27 @@ describe('Video file upload and streaming API', () => {
 
   const prisma = {
     video: {
-      findUnique: jest.fn().mockResolvedValue({ id: 'video-1', source: 'LOCAL' }),
+      findUnique: jest.fn().mockResolvedValue({
+        id: 'video-1',
+        source: 'LOCAL',
+        channel: { id: 'channel-1', ownerId: 'user-1' },
+      }),
       update: jest.fn().mockResolvedValue({ id: 'video-1', status: 'READY' }),
+    },
+    session: {
+      findUnique: jest.fn().mockResolvedValue({
+        id: 'session-1',
+        userId: 'user-1',
+        token: 'session-token',
+        expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+        createdAt: new Date('2026-06-26T00:00:00.000Z'),
+        user: {
+          id: 'user-1',
+          email: 'creator@jjobtub.local',
+          displayName: 'Creator',
+          avatarUrl: null,
+        },
+      }),
     },
     videoFile: {
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
@@ -71,6 +90,7 @@ describe('Video file upload and streaming API', () => {
   it('uploads an original MP4 file and marks the video ready', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/videos/video-1/upload')
+      .set('Cookie', 'jjobtub_session=session-token')
       .attach('file', Buffer.from('abcdef'), {
         filename: 'sample.mp4',
         contentType: 'video/mp4',

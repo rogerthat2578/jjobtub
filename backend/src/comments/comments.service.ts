@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 
 type CommentWithAuthor = {
   id: string;
@@ -11,6 +12,7 @@ type CommentWithAuthor = {
   createdAt: Date;
   parentId: string | null;
   author: { id: string; displayName: string; avatarUrl: string | null };
+  likedByMe?: boolean;
   replies?: CommentWithAuthor[];
 };
 
@@ -21,6 +23,7 @@ export type CommentResponse = {
   createdAt: string;
   parentId: string | null;
   author: { id: string; displayName: string; avatarUrl: string | null };
+  likedByMe: boolean;
   replies: CommentResponse[];
 };
 
@@ -36,6 +39,7 @@ function toCommentResponse(comment: CommentWithAuthor): CommentResponse {
       displayName: comment.author.displayName,
       avatarUrl: comment.author.avatarUrl,
     },
+    likedByMe: Boolean(comment.likedByMe),
     replies: comment.replies?.map(toCommentResponse) ?? [],
   };
 }
@@ -47,7 +51,7 @@ export class CommentsService {
     private readonly authService: AuthService,
   ) {}
 
-  async listComments(videoId: string) {
+  async listComments(videoId: string, request?: Pick<Request, 'headers'>) {
     const comments = await this.prisma.comment.findMany({
       where: { videoId, parentId: null },
       include: {
@@ -59,9 +63,22 @@ export class CommentsService {
       },
       orderBy: { createdAt: 'asc' },
     });
+    const currentUser = request ? await this.authService.getCurrentUser(request) : null;
+    if (!currentUser) {
+      return {
+        items: comments.map(toCommentResponse),
+      };
+    }
+
+    const commentIds = collectCommentIds(comments);
+    const likes = await this.prisma.commentLike.findMany({
+      where: { userId: currentUser.id, commentId: { in: commentIds } },
+      select: { commentId: true },
+    });
+    const likedCommentIds = new Set(likes.map((like) => like.commentId));
 
     return {
-      items: comments.map(toCommentResponse),
+      items: comments.map((comment) => toCommentResponse(markLikedByMe(comment, likedCommentIds))),
     };
   }
 
@@ -93,11 +110,100 @@ export class CommentsService {
         videoId,
         authorId: author.id,
         parentId: dto.parentId,
-        body: dto.body,
+        body: dto.body.trim(),
       },
       include: { author: true, replies: { include: { author: true } } },
     });
 
     return toCommentResponse(comment);
   }
+
+  async updateComment(id: string, dto: UpdateCommentDto, request: Pick<Request, 'headers'>) {
+    const comment = await this.assertCommentAuthor(id, request);
+    const body = dto.body.trim();
+    if (!body) {
+      throw new BadRequestException('Comment body is required');
+    }
+
+    const updatedComment = await this.prisma.comment.update({
+      where: { id: comment.id },
+      data: { body },
+      include: { author: true, replies: { include: { author: true } } },
+    });
+
+    return toCommentResponse(updatedComment);
+  }
+
+  async deleteComment(id: string, request: Pick<Request, 'headers'>) {
+    const comment = await this.assertCommentAuthor(id, request);
+    await this.prisma.comment.delete({ where: { id: comment.id } });
+
+    return { ok: true };
+  }
+
+  async toggleLike(id: string, request: Pick<Request, 'headers'>) {
+    const user = await this.authService.getCurrentUser(request);
+    if (!user) {
+      throw new UnauthorizedException('Login required');
+    }
+
+    await this.ensureCommentExists(id);
+    const key = { commentId_userId: { commentId: id, userId: user.id } };
+    const existingLike = await this.prisma.commentLike.findUnique({ where: key });
+    if (existingLike) {
+      await this.prisma.commentLike.delete({ where: key });
+      const comment = await this.prisma.comment.update({
+        where: { id },
+        data: { likeCount: { decrement: 1 } },
+        select: { likeCount: true },
+      });
+
+      return { liked: false, likes: comment.likeCount };
+    }
+
+    await this.prisma.commentLike.create({ data: { commentId: id, userId: user.id } });
+    const comment = await this.prisma.comment.update({
+      where: { id },
+      data: { likeCount: { increment: 1 } },
+      select: { likeCount: true },
+    });
+
+    return { liked: true, likes: comment.likeCount };
+  }
+
+  private async assertCommentAuthor(id: string, request: Pick<Request, 'headers'>) {
+    const user = await this.authService.getCurrentUser(request);
+    if (!user) {
+      throw new UnauthorizedException('Login required');
+    }
+
+    const comment = await this.prisma.comment.findUnique({ where: { id } });
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+    if (comment.authorId !== user.id) {
+      throw new ForbiddenException('Only the comment author can manage this comment');
+    }
+
+    return comment;
+  }
+
+  private async ensureCommentExists(id: string) {
+    const comment = await this.prisma.comment.findUnique({ where: { id } });
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+  }
+}
+
+function collectCommentIds(comments: CommentWithAuthor[]) {
+  return comments.flatMap((comment) => [comment.id, ...(comment.replies?.map((reply) => reply.id) ?? [])]);
+}
+
+function markLikedByMe(comment: CommentWithAuthor, likedCommentIds: Set<string>): CommentWithAuthor {
+  return {
+    ...comment,
+    likedByMe: likedCommentIds.has(comment.id),
+    replies: comment.replies?.map((reply) => markLikedByMe(reply, likedCommentIds)),
+  };
 }

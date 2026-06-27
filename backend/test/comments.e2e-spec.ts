@@ -61,6 +61,20 @@ describe('Comments API', () => {
     comment: {
       findMany: jest.fn().mockResolvedValue([comment]),
       findUnique: jest.fn().mockResolvedValue(comment),
+      update: jest.fn().mockImplementation((args) =>
+        Promise.resolve({
+          ...comment,
+          body: args.data.body ?? comment.body,
+          likeCount:
+            args.data.likeCount?.increment !== undefined
+              ? comment.likeCount + args.data.likeCount.increment
+              : args.data.likeCount?.decrement !== undefined
+                ? comment.likeCount - args.data.likeCount.decrement
+                : comment.likeCount,
+          replies: [],
+        }),
+      ),
+      delete: jest.fn().mockResolvedValue(comment),
       create: jest.fn().mockImplementation((args) =>
         Promise.resolve({
           ...comment,
@@ -71,7 +85,32 @@ describe('Comments API', () => {
         }),
       ),
     },
+    commentLike: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue({ id: 'comment-like-1', commentId: comment.id, userId: author.id }),
+      delete: jest.fn().mockResolvedValue({ id: 'comment-like-1', commentId: comment.id, userId: author.id }),
+    },
   };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma.video.findUnique.mockResolvedValue({ id: 'video-1' });
+    prisma.user.findUnique.mockResolvedValue(author);
+    prisma.user.findFirst.mockResolvedValue(author);
+    prisma.session.findUnique.mockResolvedValue({
+      id: 'session-1',
+      userId: author.id,
+      token: 'session-token',
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      createdAt: new Date('2026-06-26T02:00:00.000Z'),
+      user: author,
+    });
+    prisma.comment.findMany.mockResolvedValue([comment]);
+    prisma.comment.findUnique.mockResolvedValue(comment);
+    prisma.commentLike.findMany.mockResolvedValue([]);
+    prisma.commentLike.findUnique.mockResolvedValue(null);
+  });
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -180,6 +219,78 @@ describe('Comments API', () => {
         body: 'New reply',
       },
       include: expect.any(Object),
+    });
+  });
+
+  it('marks comments liked by the current user', async () => {
+    prisma.commentLike.findMany.mockResolvedValue([{ commentId: 'comment-reply-1' }]);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/videos/video-1/comments')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(200);
+
+    expect(response.body.items[0].likedByMe).toBe(false);
+    expect(response.body.items[0].replies[0].likedByMe).toBe(true);
+    expect(prisma.commentLike.findMany).toHaveBeenCalledWith({
+      where: { userId: author.id, commentId: { in: ['comment-1', 'comment-reply-1'] } },
+      select: { commentId: true },
+    });
+  });
+
+  it('updates a comment written by the logged-in author', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/api/comments/comment-1')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .send({ body: 'Updated comment' })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: 'comment-1',
+      body: 'Updated comment',
+      author: { id: author.id, displayName: 'Comment Author' },
+    });
+    expect(prisma.comment.update).toHaveBeenCalledWith({
+      where: { id: 'comment-1' },
+      data: { body: 'Updated comment' },
+      include: expect.any(Object),
+    });
+  });
+
+  it('deletes a comment written by the logged-in author', async () => {
+    const response = await request(app.getHttpServer())
+      .delete('/api/comments/comment-1')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(200);
+
+    expect(response.body).toEqual({ ok: true });
+    expect(prisma.comment.delete).toHaveBeenCalledWith({ where: { id: 'comment-1' } });
+  });
+
+  it('toggles a comment like on', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/comments/comment-1/like')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(201);
+
+    expect(response.body).toEqual({ liked: true, likes: 1 });
+    expect(prisma.commentLike.create).toHaveBeenCalledWith({
+      data: { commentId: 'comment-1', userId: author.id },
+    });
+  });
+
+  it('toggles a comment like off', async () => {
+    prisma.commentLike.findUnique.mockResolvedValue({ id: 'comment-like-1', commentId: comment.id, userId: author.id });
+    prisma.comment.update.mockResolvedValueOnce({ ...comment, likeCount: 0, replies: [] });
+
+    const response = await request(app.getHttpServer())
+      .post('/api/comments/comment-1/like')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(201);
+
+    expect(response.body).toEqual({ liked: false, likes: 0 });
+    expect(prisma.commentLike.delete).toHaveBeenCalledWith({
+      where: { commentId_userId: { commentId: 'comment-1', userId: author.id } },
     });
   });
 });
