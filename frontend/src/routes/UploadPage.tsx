@@ -11,7 +11,7 @@ export function UploadPage() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("개발");
   const [file, setFile] = useState<File | null>(null);
-  const [youtubeUrl, setYoutubeUrl] = useState("https://youtu.be/Fs9w91F6CQQ");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
   const [uploadMode, setUploadMode] = useState<"file" | "youtube">("file");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -170,7 +170,7 @@ export function UploadPage() {
             <input
               value={youtubeUrl}
               onChange={(event) => setYoutubeUrl(event.target.value)}
-              placeholder="https://youtu.be/Fs9w91F6CQQ"
+              placeholder="https://www.youtube.com/watch?v=VIDEO_ID"
               type="url"
             />
           </label>

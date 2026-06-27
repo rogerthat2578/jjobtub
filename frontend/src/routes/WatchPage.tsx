@@ -246,6 +246,8 @@ export function WatchPage() {
 
   const canManageVideo = Boolean(user?.channelId && user.channelId === video.channelId);
   const isOwnChannel = Boolean(user?.channelId && user.channelId === channel.id);
+  const youtubeAutoplayUrl =
+    video.embedUrl && video.embedUrl.includes("?") ? `${video.embedUrl}&autoplay=1` : `${video.embedUrl}?autoplay=1`;
 
   return (
     <div className="watch-layout">
@@ -253,7 +255,7 @@ export function WatchPage() {
         {video.source === "YOUTUBE" && video.embedUrl ? (
           <iframe
             className="player youtube-player"
-            src={video.embedUrl}
+            src={youtubeAutoplayUrl}
             title={video.title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
@@ -265,6 +267,8 @@ export function WatchPage() {
             controls
             controlsList="nodownload"
             disablePictureInPicture
+            autoPlay
+            playsInline
             poster={video.thumbnailUrl}
             src={video.videoUrl}
             onContextMenu={(event) => event.preventDefault()}
