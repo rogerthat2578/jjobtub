@@ -41,6 +41,67 @@ export class VideosService {
     };
   }
 
+  async listSubscribedVideos(request: Request) {
+    const user = await this.requireCurrentUser(request);
+    const subscriptions = await this.prisma.channelSubscription.findMany({
+      where: { userId: user.id },
+      select: { channelId: true },
+    });
+    const channelIds = subscriptions.map((subscription) => subscription.channelId);
+    if (channelIds.length === 0) {
+      return { items: [], nextCursor: null };
+    }
+
+    const videos = await this.prisma.video.findMany({
+      where: {
+        status: VideoStatus.READY,
+        visibility: 'PUBLIC',
+        channelId: { in: channelIds },
+      },
+      include: { channel: true },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+      take: 50,
+    });
+
+    return { items: videos.map(toVideoListItem), nextCursor: null };
+  }
+
+  async listLibraryVideos(request: Request) {
+    const user = await this.requireCurrentUser(request);
+    const likes = await this.prisma.videoLike.findMany({
+      where: { userId: user.id },
+      include: { video: { include: { channel: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    return {
+      items: likes
+        .map((like) => like.video)
+        .filter((video) => video.status === VideoStatus.READY && video.visibility === 'PUBLIC')
+        .map(toVideoListItem),
+      nextCursor: null,
+    };
+  }
+
+  async listHistoryVideos(request: Request) {
+    const user = await this.requireCurrentUser(request);
+    const views = await this.prisma.videoView.findMany({
+      where: { userId: user.id },
+      include: { video: { include: { channel: true } } },
+      orderBy: { lastViewedAt: 'desc' },
+      take: 50,
+    });
+
+    return {
+      items: views
+        .map((view) => view.video)
+        .filter((video) => video.status === VideoStatus.READY && video.visibility === 'PUBLIC')
+        .map(toVideoListItem),
+      nextCursor: null,
+    };
+  }
+
   async getVideo(id: string, request?: Request) {
     const video = await this.prisma.video.findUnique({
       where: { id },
@@ -217,12 +278,20 @@ export class VideosService {
     };
   }
 
-  async incrementView(id: string) {
+  async incrementView(id: string, request?: Request) {
     const video = await this.prisma.video.update({
       where: { id },
       data: { viewCount: { increment: 1 } },
       select: { viewCount: true },
     });
+    const user = request ? await this.authService.getCurrentUser(request) : null;
+    if (user) {
+      await this.prisma.videoView.upsert({
+        where: { videoId_userId: { videoId: id, userId: user.id } },
+        create: { videoId: id, userId: user.id },
+        update: { viewCount: { increment: 1 }, lastViewedAt: new Date() },
+      });
+    }
 
     return { views: video.viewCount };
   }
@@ -369,6 +438,14 @@ export class VideosService {
     if (!video) {
       throw new NotFoundException('Video not found');
     }
+  }
+
+  private async requireCurrentUser(request: Request) {
+    const user = await this.authService.getCurrentUser(request);
+    if (!user) {
+      throw new UnauthorizedException('Login required');
+    }
+    return user;
   }
 }
 

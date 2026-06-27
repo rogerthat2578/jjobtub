@@ -1,12 +1,11 @@
-import { Compass, FolderClock, Home, Library, Subtitles } from "lucide-react";
+import { FolderClock, Home, Library, Subtitles } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 const items = [
   { label: "홈", icon: Home, to: "/" },
-  { label: "탐색", icon: Compass, to: "/search?q=개발" },
-  { label: "구독", icon: Subtitles, to: "/search?q=채널" },
-  { label: "보관함", icon: Library, to: "/search?q=저장" },
-  { label: "기록", icon: FolderClock, to: "/search?q=최근" },
+  { label: "구독", icon: Subtitles, to: "/subscriptions" },
+  { label: "보관함", icon: Library, to: "/library" },
+  { label: "기록", icon: FolderClock, to: "/history" },
 ];
 
 type SidebarProps = {

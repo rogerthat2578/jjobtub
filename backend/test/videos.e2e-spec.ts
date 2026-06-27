@@ -56,8 +56,17 @@ describe('Videos API', () => {
     },
     videoLike: {
       findUnique: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockResolvedValue({ id: 'like-1', videoId: 'video-1', userId: 'user-1' }),
       delete: jest.fn().mockResolvedValue({ id: 'like-1', videoId: 'video-1', userId: 'user-1' }),
+    },
+    channelSubscription: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
+    videoView: {
+      findMany: jest.fn().mockResolvedValue([]),
+      upsert: jest.fn().mockResolvedValue({ id: 'view-1', videoId: 'video-1', userId: 'user-1' }),
     },
     channel: {
       findUnique: jest.fn().mockResolvedValue(channel),
@@ -93,6 +102,10 @@ describe('Videos API', () => {
     prisma.video.update.mockResolvedValue({ ...video, viewCount: 8 });
     prisma.channel.findUnique.mockResolvedValue(channel);
     prisma.videoLike.findUnique.mockResolvedValue(null);
+    prisma.videoLike.findMany.mockResolvedValue([]);
+    prisma.channelSubscription.findMany.mockResolvedValue([]);
+    prisma.channelSubscription.findUnique.mockResolvedValue(null);
+    prisma.videoView.findMany.mockResolvedValue([]);
     prisma.videoFile.findMany.mockResolvedValue([{ storagePath: 'videos/video-1/original.mp4' }]);
     prisma.videoFile.findFirst.mockResolvedValue(null);
     prisma.session.findUnique.mockResolvedValue({
@@ -138,6 +151,46 @@ describe('Videos API', () => {
     });
     expect(response.body.items[0].thumbnailUrl).toBe('/api/videos/video-1/thumbnail');
     expect(response.body.nextCursor).toBeNull();
+  });
+
+  it('lists videos from subscribed channels for the logged-in user', async () => {
+    prisma.channelSubscription.findMany.mockResolvedValueOnce([{ channelId: channel.id }]);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/videos/subscriptions')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(200);
+
+    expect(response.body.items).toHaveLength(1);
+    expect(prisma.video.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ channelId: { in: [channel.id] } }),
+      }),
+    );
+  });
+
+  it('lists liked videos for the logged-in user', async () => {
+    prisma.videoLike.findMany.mockResolvedValueOnce([{ video }]);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/videos/library')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(200);
+
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0]).toMatchObject({ id: 'video-1', title: 'First Video' });
+  });
+
+  it('lists video history for the logged-in user', async () => {
+    prisma.videoView.findMany.mockResolvedValueOnce([{ video }]);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/videos/history')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(200);
+
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0]).toMatchObject({ id: 'video-1', title: 'First Video' });
   });
 
   it('returns video details', async () => {
@@ -323,13 +376,21 @@ describe('Videos API', () => {
   });
 
   it('increments a video view count', async () => {
-    const response = await request(app.getHttpServer()).post('/api/videos/video-1/view').expect(201);
+    const response = await request(app.getHttpServer())
+      .post('/api/videos/video-1/view')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(201);
 
     expect(response.body).toEqual({ views: 8 });
     expect(prisma.video.update).toHaveBeenCalledWith({
       where: { id: 'video-1' },
       data: { viewCount: { increment: 1 } },
       select: { viewCount: true },
+    });
+    expect(prisma.videoView.upsert).toHaveBeenCalledWith({
+      where: { videoId_userId: { videoId: 'video-1', userId: 'user-1' } },
+      create: { videoId: 'video-1', userId: 'user-1' },
+      update: { viewCount: { increment: 1 }, lastViewedAt: expect.any(Date) },
     });
   });
 

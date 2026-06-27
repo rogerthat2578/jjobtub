@@ -88,6 +88,21 @@ export async function fetchVideos(params: { q?: string; category?: string; chann
   return mapVideoList(data.items);
 }
 
+export async function fetchSubscribedVideos() {
+  const data = await request<{ items: ApiVideoListItem[] }>("/videos/subscriptions");
+  return mapVideoList(data.items);
+}
+
+export async function fetchLibraryVideos() {
+  const data = await request<{ items: ApiVideoListItem[] }>("/videos/library");
+  return mapVideoList(data.items);
+}
+
+export async function fetchHistoryVideos() {
+  const data = await request<{ items: ApiVideoListItem[] }>("/videos/history");
+  return mapVideoList(data.items);
+}
+
 export async function fetchVideo(id: string) {
   const item = await request<ApiVideoDetail>(`/videos/${id}`);
   return {

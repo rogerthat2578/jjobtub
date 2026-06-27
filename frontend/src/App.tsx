@@ -6,9 +6,11 @@ import { ToastProvider } from "./components/ToastProvider";
 import { AuthPage } from "./routes/AuthPage";
 import { ChannelPage } from "./routes/ChannelPage";
 import { HomePage } from "./routes/HomePage";
+import { PersonalVideoListPage } from "./routes/PersonalVideoListPage";
 import { SearchPage } from "./routes/SearchPage";
 import { UploadPage } from "./routes/UploadPage";
 import { WatchPage } from "./routes/WatchPage";
+import { fetchHistoryVideos, fetchLibraryVideos, fetchSubscribedVideos } from "./services/apiClient";
 
 export default function App() {
   return (
@@ -21,6 +23,39 @@ export default function App() {
             <Route path="/login" element={<AuthPage mode="login" />} />
             <Route path="/register" element={<AuthPage mode="register" />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route
+              path="/subscriptions"
+              element={
+                <PersonalVideoListPage
+                  title="구독"
+                  description="구독한 채널의 최신 영상을 모아봅니다."
+                  emptyMessage="아직 구독한 채널 영상이 없습니다."
+                  loadVideos={fetchSubscribedVideos}
+                />
+              }
+            />
+            <Route
+              path="/library"
+              element={
+                <PersonalVideoListPage
+                  title="보관함"
+                  description="좋아요를 누른 영상을 다시 볼 수 있습니다."
+                  emptyMessage="아직 보관함에 담긴 영상이 없습니다."
+                  loadVideos={fetchLibraryVideos}
+                />
+              }
+            />
+            <Route
+              path="/history"
+              element={
+                <PersonalVideoListPage
+                  title="기록"
+                  description="최근 시청한 영상을 확인합니다."
+                  emptyMessage="아직 시청 기록이 없습니다."
+                  loadVideos={fetchHistoryVideos}
+                />
+              }
+            />
             <Route path="/watch/:videoId" element={<WatchPage />} />
             <Route path="/channel/:channelId" element={<ChannelPage />} />
             <Route path="/my-channel" element={<ChannelPage isMine />} />

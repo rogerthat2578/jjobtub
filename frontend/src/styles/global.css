@@ -552,6 +552,21 @@ img {
   background: var(--surface);
 }
 
+.empty-panel {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  padding: 26px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--surface);
+}
+
+.empty-panel p {
+  margin: 0;
+}
+
 .watch-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 390px;

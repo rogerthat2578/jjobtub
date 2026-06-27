@@ -24,6 +24,21 @@ export class VideosController {
     });
   }
 
+  @Get('subscriptions')
+  listSubscribedVideos(@Req() request: Request) {
+    return this.videosService.listSubscribedVideos(request);
+  }
+
+  @Get('library')
+  listLibraryVideos(@Req() request: Request) {
+    return this.videosService.listLibraryVideos(request);
+  }
+
+  @Get('history')
+  listHistoryVideos(@Req() request: Request) {
+    return this.videosService.listHistoryVideos(request);
+  }
+
   @Get(':id')
   getVideo(@Param('id') id: string, @Req() request: Request) {
     return this.videosService.getVideo(id, request);
@@ -35,8 +50,8 @@ export class VideosController {
   }
 
   @Post(':id/view')
-  incrementView(@Param('id') id: string) {
-    return this.videosService.incrementView(id);
+  incrementView(@Param('id') id: string, @Req() request: Request) {
+    return this.videosService.incrementView(id, request);
   }
 
   @Post(':id/like')
