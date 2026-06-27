@@ -1,5 +1,5 @@
 import { VideoVisibility } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsArray, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateVideoDto {
   @IsString()
@@ -20,4 +20,10 @@ export class UpdateVideoDto {
   @IsEnum(VideoVisibility)
   @IsOptional()
   visibility?: VideoVisibility;
+
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(30, { each: true })
+  @IsOptional()
+  tags?: string[];
 }

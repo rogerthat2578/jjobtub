@@ -14,6 +14,7 @@ export function UploadPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("개발");
+  const [tagsInput, setTagsInput] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -116,7 +117,7 @@ export function UploadPage() {
       return;
     }
     if (!user?.channelId) {
-      setError("로그인 후 내 채널로 업로드할 수 있습니다.");
+      showToast("로그인 후 내 채널로 업로드할 수 있습니다.", "error");
       return;
     }
 
@@ -136,6 +137,7 @@ export function UploadPage() {
         channelId: user.channelId,
         source: uploadMode === "youtube" ? "YOUTUBE" : "LOCAL",
         externalUrl: uploadMode === "youtube" ? youtubeUrl.trim() : undefined,
+        tags: parseTags(tagsInput),
       });
       createdVideoId = created.id;
       if (uploadMode === "file" && file) {
@@ -241,6 +243,16 @@ export function UploadPage() {
             <option>라이프스타일</option>
           </select>
         </label>
+        <label>
+          <span>태그</span>
+          <input
+            value={tagsInput}
+            onChange={(event) => setTagsInput(event.target.value)}
+            placeholder="예: react, tutorial, vlog"
+            maxLength={240}
+          />
+          <small>쉼표로 구분해 최대 12개까지 추가할 수 있습니다.</small>
+        </label>
         {uploadMode === "file" ? (
           <>
             <label
@@ -304,7 +316,7 @@ function toUploadErrorMessage(error: unknown, mode: "file" | "youtube") {
       return "파일 크기가 서버 제한을 초과했습니다.";
     }
     if (error.status === 401) {
-      return "로그인 후 업로드할 수 있습니다.";
+      return "업로드 권한을 확인해 주세요.";
     }
     if (error.status === 403) {
       return "내 채널에만 업로드할 수 있습니다.";
@@ -322,4 +334,16 @@ function formatFileSize(bytes: number) {
     return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
   }
   return `${Math.max(1, Math.round(bytes / 1024))}KB`;
+}
+
+function parseTags(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((tag) => tag.trim().replace(/^#/, ""))
+        .filter(Boolean)
+        .map((tag) => tag.slice(0, 30)),
+    ),
+  ).slice(0, 12);
 }

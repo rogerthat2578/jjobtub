@@ -24,6 +24,7 @@ export function toVideoListItem(video: VideoWithChannel) {
     uploadedAt: (video.publishedAt ?? video.createdAt).toISOString(),
     durationSeconds: video.durationSeconds,
     category: video.category,
+    tags: video.tags,
     visibility: video.visibility,
     status: video.status,
   };

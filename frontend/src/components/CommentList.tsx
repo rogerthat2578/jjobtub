@@ -1,5 +1,6 @@
 import { Check, ChevronDown, ChevronUp, MessageSquareReply, Pencil, ThumbsUp, Trash2, X } from "lucide-react";
 import { type FormEvent, useState } from "react";
+import { useToast } from "./ToastProvider";
 import type { Comment } from "../types/comment";
 
 type CommentListProps = {
@@ -41,6 +42,7 @@ function CommentItem({
   onLike,
   depth = 0,
 }: CommentItemProps) {
+  const { showToast } = useToast();
   const [isReplying, setIsReplying] = useState(false);
   const [replyBody, setReplyBody] = useState("");
   const [replyError, setReplyError] = useState("");
@@ -55,6 +57,10 @@ function CommentItem({
 
   async function handleReplySubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canReply) {
+      showToast("로그인 후 답글을 작성할 수 있습니다.", "error");
+      return;
+    }
 
     const trimmedBody = replyBody.trim();
     if (!trimmedBody) {
@@ -117,7 +123,7 @@ function CommentItem({
 
   async function handleLike() {
     if (!canReply) {
-      setActionError("로그인 후 좋아요를 누를 수 있습니다.");
+      showToast("로그인 후 좋아요를 누를 수 있습니다.", "error");
       return;
     }
 
@@ -186,6 +192,10 @@ function CommentItem({
             className="text-button"
             type="button"
             onClick={() => {
+              if (!canReply) {
+                showToast("로그인 후 답글을 작성할 수 있습니다.", "error");
+                return;
+              }
               setIsReplying((current) => !current);
               setReplyBody("");
               setReplyError("");
@@ -226,7 +236,6 @@ function CommentItem({
 
         {isReplying && (
           <form className="reply-form" onSubmit={handleReplySubmit}>
-            {!canReply && <p className="form-error">로그인 후 답글을 작성할 수 있습니다.</p>}
             <textarea
               maxLength={1000}
               placeholder="답글을 입력하세요"

@@ -27,6 +27,7 @@ const video = {
   durationSeconds: 123,
   viewCount: 7,
   likeCount: 3,
+  tags: ['react', 'frontend'],
   source: 'LOCAL',
   externalUrl: null,
   externalVideoId: null,
@@ -314,6 +315,7 @@ describe('Videos API', () => {
         category: '음악',
         channelId: channel.id,
         visibility: 'PUBLIC',
+        tags: [' react ', 'frontend', 'react', ''],
       })
       .expect(201);
 
@@ -328,6 +330,7 @@ describe('Videos API', () => {
         description: 'Draft description',
         category: '음악',
         visibility: 'PUBLIC',
+        tags: ['react', 'frontend'],
         status: 'DRAFT',
         source: 'LOCAL',
       },
@@ -357,6 +360,7 @@ describe('Videos API', () => {
         description: 'Draft description',
         category: '개발',
         visibility: 'PUBLIC',
+        tags: [],
         status: 'DRAFT',
         source: 'LOCAL',
       },
@@ -397,6 +401,7 @@ describe('Videos API', () => {
         source: 'YOUTUBE',
         externalUrl: 'https://youtu.be/Fs9w91F6CQQ',
         externalVideoId: 'Fs9w91F6CQQ',
+        tags: [],
         publishedAt: expect.any(Date),
       },
     });
@@ -490,6 +495,7 @@ describe('Videos API', () => {
       title: 'Updated Video',
       description: 'Updated description',
       category: '음악',
+      tags: ['updated', 'tutorial'],
     });
 
     const response = await request(app.getHttpServer())
@@ -500,6 +506,7 @@ describe('Videos API', () => {
         description: 'Updated description',
         category: '음악',
         visibility: 'PUBLIC',
+        tags: [' updated ', 'tutorial', 'updated'],
       })
       .expect(200);
 
@@ -508,6 +515,7 @@ describe('Videos API', () => {
       title: 'Updated Video',
       description: 'Updated description',
       category: '음악',
+      tags: ['updated', 'tutorial'],
     });
     expect(prisma.video.update).toHaveBeenCalledWith({
       where: { id: 'video-1' },
@@ -516,6 +524,7 @@ describe('Videos API', () => {
         description: 'Updated description',
         category: '음악',
         visibility: 'PUBLIC',
+        tags: ['updated', 'tutorial'],
       },
       include: { channel: true },
     });

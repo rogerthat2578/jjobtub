@@ -72,6 +72,7 @@ erDiagram
     int durationSeconds
     int viewCount
     int likeCount
+    string[] tags
     datetime publishedAt
     datetime createdAt
     datetime updatedAt

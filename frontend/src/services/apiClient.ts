@@ -38,6 +38,7 @@ type ApiVideoListItem = {
   uploadedAt: string;
   durationSeconds: number;
   category: string;
+  tags?: string[];
   visibility?: string;
   status?: string;
 };
@@ -246,6 +247,7 @@ export async function createVideo(input: {
   channelId: string;
   source?: "LOCAL" | "YOUTUBE";
   externalUrl?: string;
+  tags?: string[];
 }) {
   return request<{ id: string; status: string }>("/videos", {
     method: "POST",
@@ -318,7 +320,7 @@ export async function updateChannel(
 
 export async function updateVideo(
   videoId: string,
-  input: { title: string; description: string; category: string; visibility?: string },
+  input: { title: string; description: string; category: string; visibility?: string; tags?: string[] },
 ) {
   const item = await request<ApiVideoDetail>(`/videos/${videoId}`, {
     method: "PATCH",
@@ -407,6 +409,7 @@ function mapVideo(item: ApiVideoListItem | ApiVideoDetail): Video {
     uploadedAt: formatDate(item.uploadedAt),
     duration: formatDuration(item.durationSeconds),
     category: item.category,
+    tags: item.tags ?? [],
     likes: "likeCount" in item ? item.likeCount.toLocaleString() : "0",
     likesCount: "likeCount" in item ? item.likeCount : undefined,
     likedByMe: "likedByMe" in item ? item.likedByMe : undefined,

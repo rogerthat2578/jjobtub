@@ -1,5 +1,5 @@
 import { VideoSource, VideoVisibility } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateVideoDto {
   @IsString()
@@ -32,4 +32,10 @@ export class CreateVideoDto {
   @MaxLength(2048)
   @IsOptional()
   externalUrl?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(30, { each: true })
+  @IsOptional()
+  tags?: string[];
 }

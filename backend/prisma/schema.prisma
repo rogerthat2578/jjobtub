@@ -97,6 +97,7 @@ model Video {
   durationSeconds Int             @default(0)
   viewCount       Int             @default(0)
   likeCount       Int             @default(0)
+  tags            String[]        @default([])
   publishedAt     DateTime?
   files           VideoFile[]
   comments        Comment[]

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { useToast } from "../components/ToastProvider";
 import { fetchPlaylists } from "../services/apiClient";
 import type { Playlist } from "../types/playlist";
 
 export function PlaylistLibraryPage() {
   const { user, isLoading } = useAuth();
+  const { showToast } = useToast();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [error, setError] = useState("");
   const [isFetching, setIsFetching] = useState(true);
@@ -51,23 +53,55 @@ export function PlaylistLibraryPage() {
       ) : (
         <section className="playlist-grid" aria-label="재생목록">
           {playlists.map((playlist) => (
-            <article className="playlist-card" key={playlist.id}>
-              <div className="playlist-thumb-stack">
-                {playlist.videos.slice(0, 3).map((video) => (
-                  <img key={video.id} src={video.thumbnailUrl} alt="" />
-                ))}
-                {playlist.videos.length === 0 && <span>비어 있음</span>}
-              </div>
-              <div>
-                <h2>{playlist.name}</h2>
-                <p>
-                  {playlist.kind === "LIKED" ? "자동 재생목록" : "내 재생목록"} · {playlist.videoCount.toLocaleString()}개 영상
-                </p>
-              </div>
-            </article>
+            <PlaylistCard key={playlist.id} playlist={playlist} onEmpty={() => showToast("재생할 영상이 없습니다.", "info")} />
           ))}
         </section>
       )}
     </div>
+  );
+}
+
+function PlaylistCard({ playlist, onEmpty }: { playlist: Playlist; onEmpty: () => void }) {
+  const firstVideo = playlist.videos[0];
+  const content = (
+    <>
+      <div className="playlist-thumb-stack">
+        {playlist.videos.slice(0, 3).map((video) => (
+          <img key={video.id} src={video.thumbnailUrl} alt="" />
+        ))}
+        {playlist.videos.length === 0 && <span>비어 있음</span>}
+      </div>
+      <div>
+        <h2>{playlist.name}</h2>
+        <p>
+          {playlist.kind === "LIKED" ? "자동 재생목록" : "내 재생목록"} · {playlist.videoCount.toLocaleString()}개 영상
+        </p>
+      </div>
+    </>
+  );
+
+  if (!firstVideo) {
+    return (
+      <article
+        className="playlist-card playlist-card-button"
+        role="button"
+        tabIndex={0}
+        onClick={onEmpty}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onEmpty();
+          }
+        }}
+      >
+        {content}
+      </article>
+    );
+  }
+
+  return (
+    <Link className="playlist-card playlist-card-link" to={`/watch/${firstVideo.id}?playlist=${playlist.id}`}>
+      {content}
+    </Link>
   );
 }

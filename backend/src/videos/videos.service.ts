@@ -199,6 +199,7 @@ export class VideosService {
           title: dto.title,
           description: dto.description,
           category: dto.category,
+          tags: normalizeTags(dto.tags),
           visibility: dto.visibility ?? 'PUBLIC',
           status: 'READY',
           source: 'YOUTUBE',
@@ -220,6 +221,7 @@ export class VideosService {
         title: dto.title,
         description: dto.description,
         category: dto.category,
+        tags: normalizeTags(dto.tags),
         visibility: dto.visibility ?? 'PUBLIC',
         status: 'DRAFT',
         source: 'LOCAL',
@@ -389,6 +391,7 @@ export class VideosService {
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.category !== undefined) data.category = dto.category;
     if (dto.visibility !== undefined) data.visibility = dto.visibility;
+    if (dto.tags !== undefined) data.tags = normalizeTags(dto.tags);
 
     const video = await this.prisma.video.update({
       where: { id },
@@ -572,4 +575,19 @@ function videoOrderBy(sort?: string) {
     return [{ likeCount: 'desc' as const }, { publishedAt: 'desc' as const }, { createdAt: 'desc' as const }];
   }
   return [{ publishedAt: 'desc' as const }, { createdAt: 'desc' as const }];
+}
+
+function normalizeTags(tags?: string[]) {
+  if (!tags) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      tags
+        .map((tag) => tag.trim().replace(/^#/, ''))
+        .filter(Boolean)
+        .map((tag) => tag.slice(0, 30)),
+    ),
+  ).slice(0, 12);
 }

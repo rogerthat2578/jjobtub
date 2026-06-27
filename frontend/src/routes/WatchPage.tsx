@@ -1,6 +1,6 @@
 import { Bell, ListPlus, Pencil, Share2, ThumbsUp, Trash2 } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { CommentList } from "../components/CommentList";
 import { PlaylistSaveDialog } from "../components/PlaylistSaveDialog";
@@ -11,6 +11,7 @@ import {
   deleteComment,
   deleteVideo,
   fetchComments,
+  fetchPlaylistVideos,
   fetchVideo,
   fetchVideos,
   incrementVideoView,
@@ -23,10 +24,19 @@ import {
 } from "../services/apiClient";
 import type { Channel } from "../types/channel";
 import type { Comment } from "../types/comment";
+import type { Playlist } from "../types/playlist";
 import type { Video } from "../types/video";
+
+type PlaylistQueue = {
+  playlist: Playlist;
+  videos: Video[];
+  channelsById: Record<string, Channel>;
+};
 
 export function WatchPage() {
   const { videoId } = useParams();
+  const [searchParams] = useSearchParams();
+  const playlistId = searchParams.get("playlist");
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -34,6 +44,7 @@ export function WatchPage() {
   const [channel, setChannel] = useState<Channel | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [recommended, setRecommended] = useState<VideoListResult>({ videos: [], channelsById: {} });
+  const [playlistQueue, setPlaylistQueue] = useState<PlaylistQueue | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [commentBody, setCommentBody] = useState("");
   const [commentError, setCommentError] = useState("");
@@ -42,6 +53,7 @@ export function WatchPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editCategory, setEditCategory] = useState("개발");
+  const [editTagsInput, setEditTagsInput] = useState("");
   const [managementError, setManagementError] = useState("");
   const [isManagingVideo, setIsManagingVideo] = useState(false);
   const [reactionError, setReactionError] = useState("");
@@ -57,23 +69,38 @@ export function WatchPage() {
     }
     viewedVideoIdRef.current = null;
 
-    Promise.all([fetchVideo(videoId), fetchComments(videoId), fetchVideos()])
-      .then(([videoResult, commentResult, recommendedResult]) => {
+    Promise.all([
+      fetchVideo(videoId),
+      fetchComments(videoId),
+      fetchVideos(),
+      playlistId ? fetchPlaylistVideos(playlistId).catch(() => null) : Promise.resolve(null),
+    ])
+      .then(([videoResult, commentResult, recommendedResult, playlistResult]) => {
         setVideo(videoResult.video);
         setChannel(videoResult.channel);
         setEditTitle(videoResult.video.title);
         setEditDescription(videoResult.video.description);
         setEditCategory(videoResult.video.category);
+        setEditTagsInput(videoResult.video.tags.join(", "));
         setComments(commentResult);
         setRecommended({
           ...recommendedResult,
           videos: recommendedResult.videos.filter((item) => item.id !== videoId).slice(0, 5),
         });
+        setPlaylistQueue(
+          playlistResult && playlistResult.videos.some((item) => item.id === videoId)
+            ? {
+                playlist: playlistResult.playlist,
+                videos: playlistResult.videos,
+                channelsById: playlistResult.channelsById,
+              }
+            : null,
+        );
         setNotFound(false);
         void recordVideoView(videoId);
       })
       .catch(() => setNotFound(true));
-  }, [videoId]);
+  }, [playlistId, videoId]);
 
   async function recordVideoView(targetVideoId: string) {
     if (viewedVideoIdRef.current === targetVideoId) {
@@ -111,6 +138,7 @@ export function WatchPage() {
         description: editDescription,
         category: editCategory,
         visibility: video?.visibility ?? "PUBLIC",
+        tags: parseTags(editTagsInput),
       });
       setVideo(result.video);
       setChannel(result.channel);
@@ -144,7 +172,7 @@ export function WatchPage() {
       return;
     }
     if (!user) {
-      setReactionError("로그인 후 좋아요를 누를 수 있습니다.");
+      showToast("로그인 후 좋아요를 누를 수 있습니다.", "error");
       return;
     }
 
@@ -171,7 +199,7 @@ export function WatchPage() {
       return;
     }
     if (!user) {
-      setReactionError("로그인 후 구독할 수 있습니다.");
+      showToast("로그인 후 구독할 수 있습니다.", "error");
       return;
     }
     if (user.channelId === channel.id) {
@@ -209,7 +237,7 @@ export function WatchPage() {
 
   function handleSaveClick() {
     if (!user) {
-      setReactionError("로그인 후 재생목록에 저장할 수 있습니다.");
+      showToast("로그인 후 재생목록에 저장할 수 있습니다.", "error");
       return;
     }
     setReactionError("");
@@ -222,7 +250,7 @@ export function WatchPage() {
       return;
     }
     if (!user) {
-      setCommentError("로그인 후 댓글을 작성할 수 있습니다.");
+      showToast("로그인 후 댓글을 작성할 수 있습니다.", "error");
       return;
     }
 
@@ -348,6 +376,16 @@ export function WatchPage() {
                 <option>라이프스타일</option>
               </select>
             </label>
+            <label>
+              <span>태그</span>
+              <input
+                value={editTagsInput}
+                onChange={(event) => setEditTagsInput(event.target.value)}
+                placeholder="예: react, tutorial, vlog"
+                maxLength={240}
+              />
+              <small>쉼표로 구분해 최대 12개까지 추가할 수 있습니다.</small>
+            </label>
             <div className="video-management-row">
               {managementError ? <p className="form-error">{managementError}</p> : <span />}
               <button className="pill-button" type="button" onClick={() => setIsEditing(false)}>
@@ -368,7 +406,14 @@ export function WatchPage() {
           <div className="watch-actions">
             {canManageVideo && !isEditing && (
               <>
-                <button className="pill-button" type="button" onClick={() => setIsEditing(true)}>
+                <button
+                  className="pill-button"
+                  type="button"
+                  onClick={() => {
+                    setEditTagsInput(video.tags.join(", "));
+                    setIsEditing(true);
+                  }}
+                >
                   <Pencil size={17} />
                   수정
                 </button>
@@ -421,6 +466,15 @@ export function WatchPage() {
 
         <section className="description-box">
           <strong>{video.category}</strong>
+          {video.tags.length > 0 && (
+            <div className="tag-row" aria-label="영상 태그">
+              {video.tags.map((tag) => (
+                <span className="tag-chip" key={tag}>
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
           <p>{video.description}</p>
           {managementError && !isEditing && <p className="form-error">{managementError}</p>}
           {reactionError && <p className="form-error">{reactionError}</p>}
@@ -430,7 +484,6 @@ export function WatchPage() {
           <h2>댓글 {comments.length}개</h2>
           <form className="comment-form" onSubmit={handleCommentSubmit}>
             <label htmlFor="comment-body">댓글 작성</label>
-            {!user && <p className="form-error">로그인 후 댓글을 작성할 수 있습니다.</p>}
             <textarea
               id="comment-body"
               maxLength={1000}
@@ -459,6 +512,7 @@ export function WatchPage() {
       </section>
 
       <aside className="recommendations" aria-label="추천 영상">
+        {playlistQueue && videoId && <PlaylistQueuePanel queue={playlistQueue} currentVideoId={videoId} />}
         {recommended.videos.map((item) => (
           <VideoCard
             key={item.id}
@@ -470,6 +524,51 @@ export function WatchPage() {
       </aside>
       <PlaylistSaveDialog videoId={video.id} isOpen={isSaveDialogOpen} onClose={() => setIsSaveDialogOpen(false)} />
     </div>
+  );
+}
+
+function PlaylistQueuePanel({ queue, currentVideoId }: { queue: PlaylistQueue; currentVideoId: string }) {
+  const currentIndex = queue.videos.findIndex((item) => item.id === currentVideoId);
+
+  return (
+    <section className="playlist-queue" aria-label="현재 재생목록">
+      <header className="playlist-queue-header">
+        <div>
+          <h2>{queue.playlist.name}</h2>
+          <p>
+            {currentIndex >= 0 ? `${currentIndex + 1} / ${queue.videos.length}` : `${queue.videos.length}개 영상`}
+          </p>
+        </div>
+        <Link className="icon-button" to="/library" title="재생목록으로 이동" aria-label="재생목록으로 이동">
+          <ListPlus size={18} />
+        </Link>
+      </header>
+      <div className="playlist-queue-list">
+        {queue.videos.map((item, index) => {
+          const channel = queue.channelsById[item.channelId];
+          const isActive = item.id === currentVideoId;
+
+          return (
+            <Link
+              className={`playlist-queue-item ${isActive ? "playlist-queue-item-active" : ""}`}
+              key={item.id}
+              to={`/watch/${item.id}?playlist=${queue.playlist.id}`}
+              aria-current={isActive ? "true" : undefined}
+            >
+              <span className="playlist-queue-index">{isActive ? "▶" : index + 1}</span>
+              <span className="playlist-queue-thumb">
+                <img src={item.thumbnailUrl} alt="" />
+                <small>{item.duration}</small>
+              </span>
+              <span className="playlist-queue-copy">
+                <strong>{item.title}</strong>
+                <small>{channel?.name ?? "알 수 없는 채널"}</small>
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -501,4 +600,16 @@ function updateCommentReaction(
 
     return { ...comment, replies: updateCommentReaction(comment.replies, commentId, reaction) };
   });
+}
+
+function parseTags(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((tag) => tag.trim().replace(/^#/, ""))
+        .filter(Boolean)
+        .map((tag) => tag.slice(0, 30)),
+    ),
+  ).slice(0, 12);
 }

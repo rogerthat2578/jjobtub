@@ -12,6 +12,7 @@ export const videos: Video[] = [
     uploadedAt: "3일 전",
     duration: "18:24",
     category: "개발",
+    tags: [],
     likes: "1.8만",
   },
   {
@@ -25,6 +26,7 @@ export const videos: Video[] = [
     uploadedAt: "1주 전",
     duration: "12:08",
     category: "라이프스타일",
+    tags: [],
     likes: "4.1만",
   },
   {
@@ -38,6 +40,7 @@ export const videos: Video[] = [
     uploadedAt: "2주 전",
     duration: "21:45",
     category: "생산성",
+    tags: [],
     likes: "8천",
   },
   {
@@ -51,6 +54,7 @@ export const videos: Video[] = [
     uploadedAt: "5일 전",
     duration: "16:39",
     category: "음악",
+    tags: [],
     likes: "2.7만",
   },
   {
@@ -64,6 +68,7 @@ export const videos: Video[] = [
     uploadedAt: "4주 전",
     duration: "24:12",
     category: "개발",
+    tags: [],
     likes: "1.1만",
   },
   {
@@ -77,6 +82,7 @@ export const videos: Video[] = [
     uploadedAt: "어제",
     duration: "09:31",
     category: "브이로그",
+    tags: [],
     likes: "1.6만",
   },
 ];

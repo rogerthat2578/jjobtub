@@ -910,6 +910,26 @@ img {
   line-height: 1.6;
 }
 
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .comments-section {
   margin-top: 28px;
 }
@@ -1239,6 +1259,22 @@ img {
   gap: 12px;
 }
 
+.playlist-card-link,
+.playlist-card-button {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.playlist-card-link:hover .playlist-thumb-stack img,
+.playlist-card-button:hover .playlist-thumb-stack img {
+  transform: scale(1.02);
+}
+
 .playlist-card h2,
 .playlist-card p {
   margin: 0;
@@ -1269,6 +1305,7 @@ img {
   width: 100%;
   height: 136px;
   object-fit: cover;
+  transition: transform 180ms ease;
 }
 
 .playlist-thumb-stack img + img {
@@ -1294,6 +1331,123 @@ img {
   min-height: 136px;
   color: var(--muted);
   font-weight: 900;
+}
+
+.playlist-queue {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.playlist-queue-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.playlist-queue-header h2,
+.playlist-queue-header p {
+  margin: 0;
+}
+
+.playlist-queue-header h2 {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.playlist-queue-header p {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.playlist-queue-list {
+  display: grid;
+  max-height: min(560px, calc(100vh - 210px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.playlist-queue-item {
+  display: grid;
+  grid-template-columns: 24px 112px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 74px;
+  padding: 8px 10px;
+}
+
+.playlist-queue-item:hover,
+.playlist-queue-item-active {
+  background: var(--surface);
+}
+
+.playlist-queue-index {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.playlist-queue-thumb {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  aspect-ratio: 16 / 9;
+  background: var(--surface-strong);
+}
+
+.playlist-queue-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.playlist-queue-thumb small {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.78);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.playlist-queue-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.playlist-queue-copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.35;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.playlist-queue-copy small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .modal-backdrop {
@@ -1551,12 +1705,15 @@ img {
 
 .toast-region {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
+  top: 80px;
+  left: 50%;
   z-index: 80;
   display: grid;
+  justify-items: center;
   gap: 10px;
-  width: min(360px, calc(100vw - 40px));
+  width: min(420px, calc(100vw - 28px));
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .toast {
@@ -1564,6 +1721,8 @@ img {
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
+  width: fit-content;
+  max-width: 100%;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px 14px;
@@ -1571,6 +1730,7 @@ img {
   background: #ffffff;
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
   font-weight: 800;
+  pointer-events: none;
 }
 
 .toast-success svg {
@@ -1606,6 +1766,14 @@ img {
 
   .recommendations {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+
+  .playlist-queue {
+    grid-column: 1 / -1;
+  }
+
+  .playlist-queue-list {
+    max-height: 420px;
   }
 }
 
@@ -1741,6 +1909,10 @@ img {
   .watch-actions {
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  .playlist-queue-item {
+    grid-template-columns: 22px 104px minmax(0, 1fr);
   }
 
   .channel-banner {

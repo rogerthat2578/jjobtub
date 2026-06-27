@@ -11,6 +11,7 @@ export type Video = {
   uploadedAt: string;
   duration: string;
   category: string;
+  tags: string[];
   likes: string;
   likesCount?: number;
   likedByMe?: boolean;
