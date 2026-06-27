@@ -276,6 +276,77 @@ img {
   opacity: 0.58;
 }
 
+.account-guest-card {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.account-guest-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  color: #ffffff;
+  background: var(--ink);
+}
+
+.account-guest-card span:last-child {
+  display: grid;
+  gap: 5px;
+}
+
+.account-guest-card strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.account-guest-card small {
+  line-height: 1.45;
+}
+
+.account-auth-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.account-login-button,
+.account-create-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border-radius: 8px;
+  font-weight: 900;
+}
+
+.account-login-button {
+  color: #ffffff;
+  background: var(--accent);
+}
+
+.account-login-button:hover {
+  background: var(--accent-dark);
+}
+
+.account-create-button {
+  border: 1px solid var(--border);
+  color: var(--ink);
+  background: #ffffff;
+}
+
+.account-create-button:hover {
+  background: var(--surface);
+}
+
 .login-form {
   display: grid;
   gap: 10px;

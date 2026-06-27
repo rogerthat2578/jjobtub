@@ -1,4 +1,4 @@
-import { LogOut, Menu, Search, Tv, Upload, UserCircle, Video } from "lucide-react";
+import { LogIn, LogOut, Menu, Search, Sparkles, Tv, Upload, UserCircle, UserPlus, Video } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -127,14 +127,25 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </>
               ) : (
                 <>
-                  <strong>계정</strong>
-                  <p className="auth-helper">로그인하면 업로드, 댓글, 좋아요, 구독을 사용할 수 있습니다.</p>
-                  <Link className="primary-button" to="/login" onClick={() => setIsAccountOpen(false)}>
-                    로그인
-                  </Link>
-                  <Link className="auth-switch-link" to="/register" onClick={() => setIsAccountOpen(false)}>
-                    새 계정 만들기
-                  </Link>
+                  <div className="account-guest-card">
+                    <span className="account-guest-icon">
+                      <Sparkles size={22} />
+                    </span>
+                    <span>
+                      <strong>jjobtub 시작하기</strong>
+                      <small>로그인하면 업로드, 댓글, 좋아요, 구독을 사용할 수 있습니다.</small>
+                    </span>
+                  </div>
+                  <div className="account-auth-actions">
+                    <Link className="account-login-button" to="/login" onClick={() => setIsAccountOpen(false)}>
+                      <LogIn size={17} />
+                      <span>로그인</span>
+                    </Link>
+                    <Link className="account-create-button" to="/register" onClick={() => setIsAccountOpen(false)}>
+                      <UserPlus size={17} />
+                      <span>새 계정 만들기</span>
+                    </Link>
+                  </div>
                 </>
               )}
             </div>
