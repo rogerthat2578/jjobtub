@@ -143,12 +143,57 @@ describe('Video file upload and streaming API', () => {
     expect(existsSync(join(storageRoot, 'videos', 'video-1', 'thumbnail.jpg'))).toBe(true);
   });
 
+  it('creates a preview clip from an uploaded MP4 file', async () => {
+    await request(app.getHttpServer())
+      .post('/api/videos/video-1/upload')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .attach('file', sampleMp4, {
+        filename: 'sample.mp4',
+        contentType: 'video/mp4',
+      })
+      .expect(201);
+
+    expect(prisma.videoFile.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        videoId: 'video-1',
+        kind: 'PREVIEW',
+        mimeType: 'video/mp4',
+        storagePath: 'videos/video-1/preview.mp4',
+      }),
+    });
+    expect(existsSync(join(storageRoot, 'videos', 'video-1', 'preview.mp4'))).toBe(true);
+  });
+
   it('streams a byte range from the original MP4 file', async () => {
     await mkdir(join(storageRoot, 'videos', 'video-1'), { recursive: true });
     await writeFile(join(storageRoot, 'videos', 'video-1', 'original.mp4'), Buffer.from('abcdef'));
 
     const response = await request(app.getHttpServer())
       .get('/api/videos/video-1/stream')
+      .set('Range', 'bytes=1-3')
+      .expect(206);
+
+    expect(response.headers['accept-ranges']).toBe('bytes');
+    expect(response.headers['content-range']).toBe('bytes 1-3/6');
+    expect(response.headers['content-length']).toBe('3');
+    expect(response.headers['content-type']).toContain('video/mp4');
+    expect(response.body.toString()).toBe('bcd');
+  });
+
+  it('streams a byte range from the preview MP4 file', async () => {
+    prisma.videoFile.findFirst.mockResolvedValueOnce({
+      id: 'file-preview',
+      videoId: 'video-1',
+      kind: 'PREVIEW',
+      storagePath: 'videos/video-1/preview.mp4',
+      mimeType: 'video/mp4',
+      sizeBytes: BigInt(6),
+    });
+    await mkdir(join(storageRoot, 'videos', 'video-1'), { recursive: true });
+    await writeFile(join(storageRoot, 'videos', 'video-1', 'preview.mp4'), Buffer.from('abcdef'));
+
+    const response = await request(app.getHttpServer())
+      .get('/api/videos/video-1/preview')
       .set('Range', 'bytes=1-3')
       .expect(206);
 

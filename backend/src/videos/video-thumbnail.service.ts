@@ -48,6 +48,40 @@ export class VideoThumbnailService {
     }
   }
 
+  async createPreviewFromVideo(videoId: string, inputPath: string) {
+    const workDir = await mkdtemp(join(tmpdir(), 'jjobtub-preview-'));
+    const outputPath = join(workDir, 'preview.mp4');
+
+    try {
+      await execFileAsync(this.resolveFfmpegPath(), [
+        '-y',
+        '-i',
+        inputPath,
+        '-t',
+        '5',
+        '-vf',
+        'scale=480:-2',
+        '-an',
+        '-movflags',
+        'faststart',
+        '-preset',
+        'veryfast',
+        outputPath,
+      ]);
+
+      const buffer = await readFile(outputPath);
+      const savedFile = await this.storage.savePreview(videoId, buffer);
+
+      return {
+        storagePath: savedFile.storagePath,
+        sizeBytes: savedFile.sizeBytes,
+        mimeType: 'video/mp4',
+      };
+    } finally {
+      await rm(workDir, { recursive: true, force: true });
+    }
+  }
+
   private resolveFfmpegPath() {
     const configuredPath = this.config.get<string>('FFMPEG_PATH');
     if (configuredPath) {

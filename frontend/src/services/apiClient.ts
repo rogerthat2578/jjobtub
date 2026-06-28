@@ -32,6 +32,7 @@ type ApiVideoListItem = {
   id: string;
   title: string;
   thumbnailUrl: string;
+  previewUrl?: string | null;
   channel: ApiChannel;
   views: number;
   source?: "LOCAL" | "YOUTUBE";
@@ -422,6 +423,7 @@ function mapVideo(item: ApiVideoListItem | ApiVideoDetail): Video {
     title: item.title,
     description: "description" in item ? item.description : "",
     thumbnailUrl: absoluteApiUrl(item.thumbnailUrl),
+    previewUrl: item.previewUrl ? absoluteApiUrl(item.previewUrl) : undefined,
     videoUrl: "streamUrl" in item ? absoluteApiUrl(item.streamUrl) : streamUrl(item.id),
     embedUrl: "embedUrl" in item ? item.embedUrl ?? undefined : undefined,
     source: item.source,

@@ -163,7 +163,7 @@ erDiagram
 | --- | --- | --- |
 | `VideoVisibility` | `PUBLIC`, `UNLISTED`, `PRIVATE` | 영상 공개 범위 |
 | `VideoStatus` | `DRAFT`, `READY`, `PROCESSING`, `FAILED` | 영상 처리 상태 |
-| `VideoFileKind` | `ORIGINAL`, `THUMBNAIL`, `HLS_MASTER`, `HLS_VARIANT` | 저장된 파일 종류 |
+| `VideoFileKind` | `ORIGINAL`, `THUMBNAIL`, `PREVIEW`, `HLS_MASTER`, `HLS_VARIANT` | 저장된 파일 종류 |
 | `VideoSource` | `LOCAL`, `YOUTUBE` | 로컬 업로드 또는 YouTube 링크 |
 | `PlaylistKind` | `LIKED`, `CUSTOM` | 좋아요 표시한 재생목록 또는 사용자 지정 재생목록 |
 

@@ -264,6 +264,7 @@ export class VideosService {
       },
     });
     await this.extractAndStoreThumbnail(id, savedFile.absolutePath);
+    await this.extractAndStorePreview(id, savedFile.absolutePath);
     await this.prisma.video.update({
       where: { id },
       data: { status: 'READY' },
@@ -442,6 +443,37 @@ export class VideosService {
     };
   }
 
+  async streamPreview(id: string, rangeHeader: string | undefined): Promise<{
+    statusCode: number;
+    headers: Record<string, string>;
+    stream: ReadStream;
+  }> {
+    const file =
+      (await this.prisma.videoFile.findFirst({
+        where: { videoId: id, kind: 'PREVIEW' },
+      })) ??
+      (await this.prisma.videoFile.findFirst({
+        where: { videoId: id, kind: 'ORIGINAL' },
+      }));
+    if (!file) {
+      throw new NotFoundException('Preview video file not found');
+    }
+
+    const { stat } = await this.storage.statFile(file.storagePath);
+    const range = this.streaming.parseRange(rangeHeader, stat.size);
+
+    return {
+      statusCode: range.statusCode,
+      headers: {
+        'Accept-Ranges': 'bytes',
+        'Content-Range': `bytes ${range.start}-${range.end}/${stat.size}`,
+        'Content-Length': String(range.contentLength),
+        'Content-Type': file.mimeType,
+      },
+      stream: this.storage.createReadStream(file.storagePath, { start: range.start, end: range.end }),
+    };
+  }
+
   async getThumbnail(id: string): Promise<{ contentType: string; stream?: ReadStream; body?: string }> {
     const file = await this.prisma.videoFile.findFirst({
       where: { videoId: id, kind: 'THUMBNAIL' },
@@ -539,6 +571,31 @@ export class VideosService {
       await Promise.all(existingFiles.map((existingFile) => this.storage.deleteFile(existingFile.storagePath)));
     } catch {
       // Keep upload successful when thumbnail extraction fails; the fallback SVG remains available.
+    }
+  }
+
+  private async extractAndStorePreview(videoId: string, inputPath: string) {
+    try {
+      const existingFiles = await this.prisma.videoFile.findMany({
+        where: { videoId, kind: 'PREVIEW' },
+        select: { storagePath: true },
+      });
+      const preview = await this.thumbnails.createPreviewFromVideo(videoId, inputPath);
+      await this.prisma.videoFile.deleteMany({
+        where: { videoId, kind: 'PREVIEW' },
+      });
+      await this.prisma.videoFile.create({
+        data: {
+          videoId,
+          kind: 'PREVIEW',
+          storagePath: preview.storagePath,
+          mimeType: preview.mimeType,
+          sizeBytes: preview.sizeBytes,
+        },
+      });
+      await Promise.all(existingFiles.map((existingFile) => this.storage.deleteFile(existingFile.storagePath)));
+    } catch {
+      // Keep upload successful when preview generation fails; existing videos can fall back to original stream.
     }
   }
 }

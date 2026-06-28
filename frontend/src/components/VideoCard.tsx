@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Channel } from "../types/channel";
 import type { Video } from "../types/video";
@@ -11,10 +12,51 @@ type VideoCardProps = {
 };
 
 export function VideoCard({ video, channel, orientation = "grid", actionSlot }: VideoCardProps) {
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const previewTimerRef = useRef<number | null>(null);
+
+  const startPreview = () => {
+    if (!video.previewUrl || previewTimerRef.current !== null) {
+      return;
+    }
+    previewTimerRef.current = window.setTimeout(() => {
+      setIsPreviewing(true);
+      previewTimerRef.current = null;
+    }, 350);
+  };
+
+  const stopPreview = () => {
+    if (previewTimerRef.current !== null) {
+      window.clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    setIsPreviewing(false);
+  };
+
   return (
     <article className={`video-card video-card-${orientation}`}>
-      <Link className="thumbnail-link" to={`/watch/${video.id}`}>
+      <Link
+        className={`thumbnail-link${isPreviewing ? " thumbnail-preview-active" : ""}`}
+        to={`/watch/${video.id}`}
+        onMouseEnter={startPreview}
+        onMouseLeave={stopPreview}
+        onFocus={startPreview}
+        onBlur={stopPreview}
+      >
         <img src={video.thumbnailUrl} alt="" />
+        {video.previewUrl && isPreviewing && (
+          <video
+            className="thumbnail-preview"
+            src={video.previewUrl}
+            muted
+            loop
+            playsInline
+            autoPlay
+            preload="metadata"
+            aria-hidden="true"
+            onError={stopPreview}
+          />
+        )}
         <span className="duration">{video.duration}</span>
       </Link>
       <div className="video-card-body">

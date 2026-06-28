@@ -14,6 +14,7 @@ export function toVideoListItem(video: VideoWithChannel) {
       video.source === 'YOUTUBE' && video.externalVideoId
         ? `https://img.youtube.com/vi/${video.externalVideoId}/hqdefault.jpg`
         : `/api/videos/${video.id}/thumbnail`,
+    previewUrl: video.source === 'LOCAL' ? `/api/videos/${video.id}/preview` : null,
     channel: {
       id: video.channel.id,
       name: video.channel.name,

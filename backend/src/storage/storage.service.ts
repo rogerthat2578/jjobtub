@@ -20,6 +20,10 @@ export class StorageService {
     return `videos/${videoId}/thumbnail.${extension}`;
   }
 
+  previewPath(videoId: string) {
+    return `videos/${videoId}/preview.mp4`;
+  }
+
   async saveOriginalVideo(videoId: string, buffer: Buffer) {
     const storagePath = this.originalVideoPath(videoId);
     const absolutePath = this.resolveStoragePath(storagePath);
@@ -36,6 +40,20 @@ export class StorageService {
 
   async saveThumbnail(videoId: string, buffer: Buffer, extension: string) {
     const storagePath = this.thumbnailPath(videoId, extension);
+    const absolutePath = this.resolveStoragePath(storagePath);
+
+    await mkdir(dirname(absolutePath), { recursive: true });
+    await writeFile(absolutePath, buffer);
+
+    return {
+      storagePath,
+      absolutePath,
+      sizeBytes: buffer.length,
+    };
+  }
+
+  async savePreview(videoId: string, buffer: Buffer) {
+    const storagePath = this.previewPath(videoId);
     const absolutePath = this.resolveStoragePath(storagePath);
 
     await mkdir(dirname(absolutePath), { recursive: true });

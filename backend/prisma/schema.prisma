@@ -23,6 +23,7 @@ enum VideoStatus {
 enum VideoFileKind {
   ORIGINAL
   THUMBNAIL
+  PREVIEW
   HLS_MASTER
   HLS_VARIANT
 }

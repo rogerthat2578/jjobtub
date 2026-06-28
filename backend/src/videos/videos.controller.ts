@@ -111,6 +111,19 @@ export class VideosController {
     return new StreamableFile(streamResponse.stream);
   }
 
+  @Get(':id/preview')
+  async streamPreview(
+    @Param('id') id: string,
+    @Headers('range') range: string | undefined,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const streamResponse = await this.videosService.streamPreview(id, range);
+    response.status(streamResponse.statusCode);
+    response.set(streamResponse.headers);
+
+    return new StreamableFile(streamResponse.stream);
+  }
+
   @Get(':id/thumbnail')
   async getThumbnail(@Param('id') id: string, @Res({ passthrough: true }) response: Response) {
     const thumbnail = await this.videosService.getThumbnail(id);

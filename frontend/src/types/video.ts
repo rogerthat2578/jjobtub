@@ -3,6 +3,7 @@ export type Video = {
   title: string;
   description: string;
   thumbnailUrl: string;
+  previewUrl?: string;
   videoUrl: string;
   embedUrl?: string;
   source?: "LOCAL" | "YOUTUBE";

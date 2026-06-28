@@ -53,7 +53,7 @@ jjobtub은 YouTube형 영상 플랫폼을 목표로 만드는 풀스택 MVP입�
 - 파일 업로드 / YouTube 링크 업로드 탭
 - 업로드/수정 화면에서 영상 태그 입력 및 관리
 - 업로드 진행률, 실패 재시도, 파일 크기 초과 안내, 업로드 중 페이지 이탈 방지
-- MP4 썸네일 이미지 업로드 및 YouTube 썸네일 URL 사용
+- MP4 썸네일 이미지 업로드, 자동 추출, hover 미리보기 preview mp4 생성 및 YouTube 썸네일 URL 사용
 - 영상 재생 시 조회수 증가 API 호출
 - 영상 좋아요 및 채널 구독 UI
 - 토스트 알림과 공유 링크 복사
@@ -144,7 +144,7 @@ Prisma 모델:
 - `Playlist`: 좋아요 표시한 재생목록과 사용자 지정 재생목록
 - `PlaylistItem`: 재생목록에 저장된 영상과 직접 정렬 순서
 - `ChannelSubscription`: 사용자별 채널 구독
-- `VideoFile`: 업로드된 원본 MP4와 썸네일 이미지 파일 정보
+- `VideoFile`: 업로드된 원본 MP4, 썸네일 이미지, hover 미리보기 preview mp4 파일 정보
 - `Comment`: 댓글과 대댓글, `parentId`로 1단계 답글 구조 표현
 
 ## 사용 기술
@@ -189,7 +189,7 @@ MAX_UPLOAD_BYTES=524288000
 FFMPEG_PATH="C:\\dev\\tools\\ffmpeg\\ffmpeg.exe"
 ```
 
-이 값을 `backend/.env`에 저장합니다. `.env`는 git에 올리지 않습니다. `FFMPEG_PATH`는 MP4 썸네일 자동 추출에 사용하며, 값이 없으면 서버는 `ffmpeg` 명령 또는 `C:\dev\tools\ffmpeg\ffmpeg.exe`를 순서대로 찾습니다.
+이 값을 `backend/.env`에 저장합니다. `.env`는 git에 올리지 않습니다. `FFMPEG_PATH`는 MP4 썸네일 자동 추출과 hover 미리보기 preview mp4 생성에 사용하며, 값이 없으면 서버는 `ffmpeg` 명령 또는 `C:\dev\tools\ffmpeg\ffmpeg.exe`를 순서대로 찾습니다.
 
 ### 2. 의존성 설치
 
@@ -287,6 +287,8 @@ npm run frontend:build
 - 업로드 중 페이지 이탈 방지
 - MP4 영상 썸네일 이미지 업로드
 - ffmpeg 기반 MP4 영상 썸네일 자동 추출
+- ffmpeg 기반 MP4 hover 미리보기 preview mp4 자동 생성
+- 영상 카드 hover 시 muted/loop 미리보기 재생
 - YouTube 영상 썸네일 URL 사용
 - YouTube 링크 등록 및 iframe 재생
 - HTTP Range 기반 MP4 스트리밍
