@@ -1,5 +1,6 @@
 import type { Channel } from "../types/channel";
 import type { Comment } from "../types/comment";
+import type { AppNotification } from "../types/notification";
 import type { Playlist } from "../types/playlist";
 import type { User } from "../types/user";
 import type { Video } from "../types/video";
@@ -82,6 +83,15 @@ type ApiComment = {
   replies?: ApiComment[];
 };
 
+type ApiNotification = {
+  id: string;
+  type: AppNotification["type"];
+  message: string;
+  linkUrl?: string | null;
+  readAt?: string | null;
+  createdAt: string;
+};
+
 type ApiUser = {
   id: string;
   email: string;
@@ -95,6 +105,13 @@ export type VideoListResult = {
   channelsById: Record<string, Channel>;
 };
 
+export type SearchResult = {
+  videos: Video[];
+  channels: Channel[];
+  playlists: Playlist[];
+  channelsById: Record<string, Channel>;
+};
+
 export async function fetchVideos(params: { q?: string; category?: string; channelId?: string; sort?: string } = {}) {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -105,6 +122,25 @@ export async function fetchVideos(params: { q?: string; category?: string; chann
 
   const data = await request<{ items: ApiVideoListItem[] }>(`/videos${toQuery(searchParams)}`);
   return mapVideoList(data.items);
+}
+
+export async function fetchSearchResults(params: { q?: string; sort?: string; type?: string } = {}): Promise<SearchResult> {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) {
+      searchParams.set(key, value);
+    }
+  });
+
+  const data = await request<{ videos: ApiVideoListItem[]; channels: ApiChannel[]; playlists: ApiPlaylist[] }>(
+    `/search${toQuery(searchParams)}`,
+  );
+  const videoResult = mapVideoList(data.videos);
+  return {
+    ...videoResult,
+    channels: data.channels.map(mapChannel),
+    playlists: data.playlists.map(mapPlaylist),
+  };
 }
 
 export async function fetchSubscribedVideos() {
@@ -204,6 +240,11 @@ export async function fetchChannelPlaylists(id: string) {
   return data.items.map(mapPlaylist);
 }
 
+export async function uploadChannelAsset(channelId: string, kind: "avatar" | "banner", file: File) {
+  const channel = await uploadFileWithProgress<ApiChannel>(`/channels/${channelId}/assets/${kind}`, file);
+  return mapChannel(channel);
+}
+
 export async function fetchComments(videoId: string) {
   const data = await request<{ items: ApiComment[] }>(`/videos/${videoId}/comments`);
   return data.items.map((comment) => mapComment(videoId, comment));
@@ -260,6 +301,22 @@ export async function register(input: { email: string; password: string; display
 
 export async function logout() {
   await request<{ ok: boolean }>("/auth/logout", { method: "POST" });
+}
+
+export async function fetchNotifications() {
+  const data = await request<{ unreadCount: number; items: ApiNotification[] }>("/notifications");
+  return {
+    unreadCount: data.unreadCount,
+    items: data.items.map(mapNotification),
+  };
+}
+
+export async function markNotificationRead(id: string) {
+  await request<{ ok: boolean }>(`/notifications/${id}/read`, { method: "PATCH" });
+}
+
+export async function markAllNotificationsRead() {
+  await request<{ ok: boolean }>("/notifications/read-all", { method: "PATCH" });
 }
 
 export async function createVideo(input: {
@@ -476,14 +533,25 @@ function mapChannel(channel: ApiChannel): Channel {
     id: channel.id,
     name: channel.name,
     handle: `@${channel.name}`,
-    avatarUrl: channel.avatarUrl ?? "",
-    bannerUrl: channel.bannerUrl ?? "",
+    avatarUrl: channel.avatarUrl ? absoluteApiUrl(channel.avatarUrl) : "",
+    bannerUrl: channel.bannerUrl ? absoluteApiUrl(channel.bannerUrl) : "",
     subscribers: (channel.subscriberCount ?? 0).toLocaleString(),
     subscribersCount: channel.subscriberCount,
     videoCount: channel.videoCount,
     joinedAt: channel.createdAt ? formatDate(channel.createdAt) : undefined,
     description: channel.description ?? "",
     subscribedByMe: channel.subscribedByMe,
+  };
+}
+
+function mapNotification(notification: ApiNotification): AppNotification {
+  return {
+    id: notification.id,
+    type: notification.type,
+    message: notification.message,
+    linkUrl: notification.linkUrl ?? undefined,
+    readAt: notification.readAt,
+    createdAt: formatDate(notification.createdAt),
   };
 }
 
@@ -526,7 +594,7 @@ function mapUser(user: ApiUser): User {
 }
 
 function absoluteApiUrl(pathOrUrl: string) {
-  if (pathOrUrl.startsWith("http")) {
+  if (pathOrUrl.startsWith("http") || pathOrUrl.startsWith("data:")) {
     return pathOrUrl;
   }
   return `${API_BASE_URL}${pathOrUrl.replace(/^\/api/, "")}`;

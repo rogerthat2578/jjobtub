@@ -1,8 +1,10 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from '../auth/auth.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { toPlaylistResponse } from '../playlists/playlists.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { toVideoListItem } from '../videos/video-response';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 
@@ -11,6 +13,8 @@ export class ChannelsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
+    private readonly notifications: NotificationsService,
+    private readonly storage: StorageService,
   ) {}
 
   async getChannel(id: string) {
@@ -99,6 +103,55 @@ export class ChannelsService {
     };
   }
 
+  async uploadChannelAsset(id: string, kind: 'avatar' | 'banner', file: any, request: Request) {
+    const channel = await this.assertChannelOwner(id, request);
+    const normalizedKind = normalizeChannelAssetKind(kind);
+    if (!file?.buffer) {
+      throw new BadRequestException('Image file is required');
+    }
+    const extension = imageExtension(file.mimetype);
+    if (!extension) {
+      throw new BadRequestException('Only PNG, JPEG, and WebP images are supported');
+    }
+
+    await Promise.all(['webp', 'png', 'jpg'].map((candidate) => this.storage.deleteFile(this.storage.channelAssetPath(channel.id, normalizedKind, candidate))));
+    const saved = await this.storage.saveChannelAsset(channel.id, normalizedKind, extension, file.buffer);
+    const assetUrl = `/api/channels/${channel.id}/assets/${normalizedKind}?v=${Date.now()}`;
+    const updatedChannel = await this.prisma.channel.update({
+      where: { id: channel.id },
+      data: normalizedKind === 'avatar' ? { avatarUrl: assetUrl } : { bannerUrl: assetUrl },
+    });
+
+    return {
+      id: updatedChannel.id,
+      name: updatedChannel.name,
+      description: updatedChannel.description,
+      avatarUrl: updatedChannel.avatarUrl,
+      bannerUrl: updatedChannel.bannerUrl,
+      subscriberCount: updatedChannel.subscriberCount,
+      createdAt: updatedChannel.createdAt.toISOString(),
+      sizeBytes: saved.sizeBytes,
+    };
+  }
+
+  async getChannelAsset(id: string, kind: 'avatar' | 'banner') {
+    const normalizedKind = normalizeChannelAssetKind(kind);
+    const candidates = ['webp', 'png', 'jpg'];
+    for (const extension of candidates) {
+      const storagePath = this.storage.channelAssetPath(id, normalizedKind, extension);
+      try {
+        await this.storage.statFile(storagePath);
+        return {
+          stream: this.storage.createFileReadStream(storagePath),
+          mimeType: mimeTypeFromExtension(extension),
+        };
+      } catch {
+        continue;
+      }
+    }
+    throw new NotFoundException('Channel asset not found');
+  }
+
   async toggleSubscription(id: string, request: Request) {
     const user = await this.authService.getCurrentUser(request);
     if (!user) {
@@ -134,6 +187,13 @@ export class ChannelsService {
       data: { subscriberCount: { increment: 1 } },
       select: { subscriberCount: true },
     });
+    await this.notifications.createNotification({
+      userId: channel.ownerId,
+      actorId: user.id,
+      type: 'SUBSCRIPTION',
+      message: `${user.displayName}님이 내 채널을 구독했습니다.`,
+      linkUrl: `/channel/${id}`,
+    });
 
     return { subscribed: true, subscribers: updatedChannel.subscriberCount };
   }
@@ -154,4 +214,24 @@ export class ChannelsService {
 
     return channel;
   }
+}
+
+function normalizeChannelAssetKind(kind: string): 'avatar' | 'banner' {
+  if (kind === 'avatar' || kind === 'banner') {
+    return kind;
+  }
+  throw new BadRequestException('Unsupported channel asset kind');
+}
+
+function imageExtension(mimeType?: string) {
+  if (mimeType === 'image/png') return 'png';
+  if (mimeType === 'image/jpeg') return 'jpg';
+  if (mimeType === 'image/webp') return 'webp';
+  return '';
+}
+
+function mimeTypeFromExtension(extension: string) {
+  if (extension === 'png') return 'image/png';
+  if (extension === 'jpg') return 'image/jpeg';
+  return 'image/webp';
 }

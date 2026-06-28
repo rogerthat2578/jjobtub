@@ -32,6 +32,10 @@ export class StorageService {
     return `videos/${videoId}/subtitles/${language}.vtt`;
   }
 
+  channelAssetPath(channelId: string, kind: 'avatar' | 'banner', extension: string) {
+    return `channels/${channelId}/${kind}.${extension}`;
+  }
+
   async saveOriginalVideo(videoId: string, buffer: Buffer) {
     const storagePath = this.originalVideoPath(videoId);
     const absolutePath = this.resolveStoragePath(storagePath);
@@ -90,6 +94,20 @@ export class StorageService {
 
   async saveSubtitle(videoId: string, language: string, buffer: Buffer) {
     const storagePath = this.subtitlePath(videoId, language);
+    const absolutePath = this.resolveStoragePath(storagePath);
+
+    await mkdir(dirname(absolutePath), { recursive: true });
+    await writeFile(absolutePath, buffer);
+
+    return {
+      storagePath,
+      absolutePath,
+      sizeBytes: buffer.length,
+    };
+  }
+
+  async saveChannelAsset(channelId: string, kind: 'avatar' | 'banner', extension: string, buffer: Buffer) {
+    const storagePath = this.channelAssetPath(channelId, kind, extension);
     const absolutePath = this.resolveStoragePath(storagePath);
 
     await mkdir(dirname(absolutePath), { recursive: true });

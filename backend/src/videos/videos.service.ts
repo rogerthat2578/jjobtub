@@ -3,6 +3,7 @@ import { VideoStatus } from '@prisma/client';
 import type { Request } from 'express';
 import { ReadStream } from 'fs';
 import { AuthService } from '../auth/auth.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { StreamingService } from '../storage/streaming.service';
@@ -20,6 +21,7 @@ export class VideosService {
     private readonly storage: StorageService,
     private readonly streaming: StreamingService,
     private readonly thumbnails: VideoThumbnailService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listVideos(query: { q?: string; category?: string; channelId?: string; sort?: string; limit?: number }) {
@@ -441,7 +443,10 @@ export class VideosService {
       throw new UnauthorizedException('Login required');
     }
 
-    await this.ensureVideoExists(id);
+    const targetVideo = await this.prisma.video.findUnique({ where: { id }, include: { channel: true } });
+    if (!targetVideo) {
+      throw new NotFoundException('Video not found');
+    }
     const key = { videoId_userId: { videoId: id, userId: user.id } };
     const existingLike = await this.prisma.videoLike.findUnique({ where: key });
     if (existingLike) {
@@ -472,6 +477,13 @@ export class VideosService {
       where: { id },
       data: { likeCount: { increment: 1 } },
       select: { likeCount: true },
+    });
+    await this.notifications.createNotification({
+      userId: targetVideo.channel.ownerId,
+      actorId: user.id,
+      type: 'VIDEO_LIKE',
+      message: `${user.displayName}님이 내 영상을 좋아합니다.`,
+      linkUrl: `/watch/${id}`,
     });
 
     return { liked: true, likes: video.likeCount };

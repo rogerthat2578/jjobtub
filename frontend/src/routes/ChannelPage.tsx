@@ -1,5 +1,5 @@
 import { Bell, Pencil } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { PlaylistCard } from "../components/PlaylistCard";
@@ -12,6 +12,7 @@ import {
   fetchPlaylists,
   toggleChannelSubscription,
   updateChannel,
+  uploadChannelAsset,
   type VideoListResult,
 } from "../services/apiClient";
 import type { Channel } from "../types/channel";
@@ -46,6 +47,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [uploadingAsset, setUploadingAsset] = useState<"avatar" | "banner" | null>(null);
 
   useEffect(() => {
     const targetChannelId = isMine ? user?.channelId : channelId;
@@ -128,6 +130,29 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
     }
   }
 
+  async function handleAssetChange(kind: "avatar" | "banner", event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!channel || !file || uploadingAsset) {
+      return;
+    }
+
+    setUploadingAsset(kind);
+    setError("");
+    try {
+      const updatedChannel = await uploadChannelAsset(channel.id, kind, file);
+      setChannel({ ...updatedChannel, videoCount: channel.videoCount, joinedAt: channel.joinedAt });
+      setEditAvatarUrl(updatedChannel.avatarUrl);
+      setEditBannerUrl(updatedChannel.bannerUrl);
+      showToast(kind === "avatar" ? "채널 아바타를 업데이트했습니다." : "채널 배너를 업데이트했습니다.", "success");
+    } catch {
+      setError("이미지를 업로드하지 못했습니다. PNG, JPEG, WebP 파일을 확인하세요.");
+      showToast("채널 이미지를 업로드하지 못했습니다.", "error");
+    } finally {
+      setUploadingAsset(null);
+    }
+  }
+
   if (isMine && !isLoading && !user) {
     return <Navigate to="/login" replace />;
   }
@@ -143,6 +168,8 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const canManageChannel = Boolean(user?.channelId && user.channelId === channel.id);
   const videoCount = channel.videoCount ?? videos.videos.length;
   const featuredVideos = videos.videos.slice(0, 6);
+  const featuredVideo = videos.videos[0];
+  const featuredPlaylist = playlists[0];
 
   return (
     <div className="page-stack">
@@ -168,6 +195,28 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
                 <span>배너 URL</span>
                 <input value={editBannerUrl} onChange={(event) => setEditBannerUrl(event.target.value)} placeholder="https://..." />
               </label>
+              <div className="channel-asset-upload-row">
+                <label className="pill-button">
+                  <span>{uploadingAsset === "avatar" ? "아바타 업로드 중" : "아바타 파일"}</span>
+                  <input
+                    className="visually-hidden"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={Boolean(uploadingAsset)}
+                    onChange={(event) => void handleAssetChange("avatar", event)}
+                  />
+                </label>
+                <label className="pill-button">
+                  <span>{uploadingAsset === "banner" ? "배너 업로드 중" : "배너 파일"}</span>
+                  <input
+                    className="visually-hidden"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={Boolean(uploadingAsset)}
+                    onChange={(event) => void handleAssetChange("banner", event)}
+                  />
+                </label>
+              </div>
               {error && <p className="form-error">{error}</p>}
               <div className="video-management-row">
                 <button className="pill-button" type="button" onClick={() => setIsEditing(false)}>
@@ -228,6 +277,22 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
 
       {activeTab === "home" && (
         <section className="page-stack">
+          {(featuredVideo || featuredPlaylist) && (
+            <section className="channel-featured-grid" aria-label="채널 대표 콘텐츠">
+              {featuredVideo && (
+                <div className="channel-featured-panel">
+                  <h2>대표 영상</h2>
+                  <VideoGrid videos={[featuredVideo]} channelsById={videos.channelsById} renderActions={canManageChannel ? renderOwnerBadge : undefined} />
+                </div>
+              )}
+              {featuredPlaylist && (
+                <div className="channel-featured-panel">
+                  <h2>대표 재생목록</h2>
+                  <PlaylistCard playlist={featuredPlaylist} onEmpty={() => showToast("재생할 영상이 없습니다.", "info")} />
+                </div>
+              )}
+            </section>
+          )}
           <div className="section-heading-row">
             <div>
               <h2>최근 영상</h2>

@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from '../auth/auth.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
@@ -49,6 +50,7 @@ export class CommentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listComments(videoId: string, request?: Pick<Request, 'headers'>) {
@@ -98,11 +100,13 @@ export class CommentsService {
       throw new UnauthorizedException('Login required');
     }
 
+    let parentComment: { id: string; videoId: string; authorId: string } | null = null;
     if (dto.parentId) {
       const parent = await this.prisma.comment.findUnique({ where: { id: dto.parentId } });
       if (!parent || parent.videoId !== videoId) {
         throw new NotFoundException('Parent comment not found');
       }
+      parentComment = parent;
     }
 
     const comment = await this.prisma.comment.create({
@@ -114,6 +118,30 @@ export class CommentsService {
       },
       include: { author: true, replies: { include: { author: true } } },
     });
+
+    if (parentComment) {
+      await this.notifications.createNotification({
+        userId: parentComment.authorId,
+        actorId: author.id,
+        type: 'REPLY',
+        message: `${author.displayName}님이 내 댓글에 답글을 남겼습니다.`,
+        linkUrl: `/watch/${videoId}`,
+      });
+    } else {
+      const videoWithChannel = await this.prisma.video.findUnique({
+        where: { id: videoId },
+        include: { channel: true },
+      });
+      if (videoWithChannel) {
+        await this.notifications.createNotification({
+          userId: videoWithChannel.channel.ownerId,
+          actorId: author.id,
+          type: 'COMMENT',
+          message: `${author.displayName}님이 내 영상에 댓글을 남겼습니다.`,
+          linkUrl: `/watch/${videoId}`,
+        });
+      }
+    }
 
     return toCommentResponse(comment);
   }
@@ -147,7 +175,7 @@ export class CommentsService {
       throw new UnauthorizedException('Login required');
     }
 
-    await this.ensureCommentExists(id);
+    const targetComment = await this.ensureCommentExists(id);
     const key = { commentId_userId: { commentId: id, userId: user.id } };
     const existingLike = await this.prisma.commentLike.findUnique({ where: key });
     if (existingLike) {
@@ -166,6 +194,13 @@ export class CommentsService {
       where: { id },
       data: { likeCount: { increment: 1 } },
       select: { likeCount: true },
+    });
+    await this.notifications.createNotification({
+      userId: targetComment.authorId,
+      actorId: user.id,
+      type: 'COMMENT_LIKE',
+      message: `${user.displayName}님이 내 댓글을 좋아합니다.`,
+      linkUrl: `/watch/${targetComment.videoId}`,
     });
 
     return { liked: true, likes: comment.likeCount };
@@ -193,6 +228,7 @@ export class CommentsService {
     if (!comment) {
       throw new NotFoundException('Comment not found');
     }
+    return comment;
   }
 }
 

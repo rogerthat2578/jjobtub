@@ -13,6 +13,7 @@ import {
   SlidersHorizontal,
   Volume2,
   VolumeX,
+  X,
 } from "lucide-react";
 import {
   type KeyboardEvent,
@@ -35,6 +36,10 @@ type LocalVideoPlayerProps = {
 };
 
 type SettingsPanel = "root" | "quality" | "speed" | "captions";
+
+const MINI_PLAYER_WIDTH = 420;
+const MINI_PLAYER_HEIGHT = 272;
+const MINI_PLAYER_MARGIN = 16;
 
 const QUALITY_OPTIONS = [
   { value: "2160", height: 2160, label: "2160p", badge: "4K" },
@@ -62,13 +67,14 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
   const [selectedCaption, setSelectedCaption] = useState("off");
   const [settingsPanel, setSettingsPanel] = useState<SettingsPanel | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [isMiniPlayer, setIsMiniPlayer] = useState(false);
+  const [miniPosition, setMiniPosition] = useState<{ x: number; y: number } | null>(null);
 
   const qualityOptions = useMemo(
     () => QUALITY_OPTIONS.filter((option) => availableQualities.includes(option.height)),
     [availableQualities],
   );
   const selectedSourceUrl = useMemo(() => buildQualityUrl(sourceUrl, quality), [quality, sourceUrl]);
-  const canUsePictureInPicture = typeof document !== "undefined" && document.pictureInPictureEnabled;
 
   useEffect(() => {
     if (quality !== "auto" && !qualityOptions.some((option) => option.value === quality)) {
@@ -86,6 +92,20 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
   useEffect(() => {
     hasAppliedTimeParamRef.current = false;
   }, [sourceUrl]);
+
+  useEffect(() => {
+    if (!isMiniPlayer) {
+      return;
+    }
+    setMiniPosition((position) => clampMiniPosition(position ?? defaultMiniPosition()));
+
+    function handleResize() {
+      setMiniPosition((position) => clampMiniPosition(position ?? defaultMiniPosition()));
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isMiniPlayer]);
 
   useEffect(() => {
     if (!settingsPanel && !contextMenu) {
@@ -238,20 +258,46 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
     setContextMenu(null);
   }
 
-  async function openPictureInPicture() {
-    const video = videoRef.current;
-    if (!video || !canUsePictureInPicture) {
+  function toggleMiniPlayer() {
+    setSettingsPanel(null);
+    setContextMenu(null);
+    setMiniPosition((position) => position ?? defaultMiniPosition());
+    setIsMiniPlayer((current) => !current);
+  }
+
+  function closeMiniPlayer() {
+    setIsMiniPlayer(false);
+    setContextMenu(null);
+    setSettingsPanel(null);
+  }
+
+  function handleMiniDragStart(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) {
       return;
     }
-    try {
-      if (document.pictureInPictureElement === video) {
-        await document.exitPictureInPicture();
-      } else {
-        await video.requestPictureInPicture();
-      }
-    } finally {
-      setContextMenu(null);
+    event.preventDefault();
+    event.stopPropagation();
+    const startPosition = miniPosition ?? defaultMiniPosition();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    function handleMove(moveEvent: PointerEvent) {
+      setMiniPosition(
+        clampMiniPosition({
+          x: startPosition.x + moveEvent.clientX - startX,
+          y: startPosition.y + moveEvent.clientY - startY,
+        }),
+      );
     }
+
+    function handleUp() {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    }
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
   }
 
   function applyTimeParam(event: SyntheticEvent<HTMLVideoElement>) {
@@ -294,8 +340,9 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
 
   return (
     <div
-      className="custom-player"
+      className={`custom-player ${isMiniPlayer ? "custom-player-mini" : ""}`}
       ref={containerRef}
+      style={isMiniPlayer && miniPosition ? { left: miniPosition.x, top: miniPosition.y } : undefined}
       tabIndex={0}
       onContextMenu={handleContextMenu}
       onDoubleClick={() => containerRef.current?.requestFullscreen()}
@@ -303,6 +350,14 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
       onPointerDownCapture={handlePlayerPointerDownCapture}
       onPointerDown={handlePlayerPointerDown}
     >
+      {isMiniPlayer && (
+        <div className="mini-player-bar" data-player-interactive="true" onPointerDown={handleMiniDragStart}>
+          <span>{title}</span>
+          <button className="player-icon-button" type="button" onClick={closeMiniPlayer} aria-label="소형 플레이어 닫기">
+            <X size={17} />
+          </button>
+        </div>
+      )}
       <video
         ref={videoRef}
         className="player custom-player-video"
@@ -531,7 +586,7 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
             <Repeat size={18} />
             {isLooping ? "연속 재생 끄기" : "연속 재생"}
           </button>
-          <button type="button" onClick={() => void openPictureInPicture()} disabled={!canUsePictureInPicture}>
+          <button type="button" onClick={toggleMiniPlayer}>
             <Maximize size={18} />
             소형 플레이어
           </button>
@@ -554,6 +609,22 @@ function buildQualityUrl(sourceUrl: string, quality: string) {
   const url = new URL(sourceUrl, window.location.origin);
   url.searchParams.set("quality", quality);
   return url.toString();
+}
+
+function defaultMiniPosition() {
+  return clampMiniPosition({
+    x: window.innerWidth - MINI_PLAYER_WIDTH - MINI_PLAYER_MARGIN,
+    y: window.innerHeight - MINI_PLAYER_HEIGHT - MINI_PLAYER_MARGIN,
+  });
+}
+
+function clampMiniPosition(position: { x: number; y: number }) {
+  const maxX = Math.max(MINI_PLAYER_MARGIN, window.innerWidth - MINI_PLAYER_WIDTH - MINI_PLAYER_MARGIN);
+  const maxY = Math.max(MINI_PLAYER_MARGIN, window.innerHeight - MINI_PLAYER_HEIGHT - MINI_PLAYER_MARGIN);
+  return {
+    x: Math.min(Math.max(position.x, MINI_PLAYER_MARGIN), maxX),
+    y: Math.min(Math.max(position.y, MINI_PLAYER_MARGIN), maxY),
+  };
 }
 
 function qualityLabel(value: string, qualityOptions: typeof QUALITY_OPTIONS) {

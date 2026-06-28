@@ -1,7 +1,9 @@
-import { LogIn, LogOut, Menu, Search, Sparkles, Tv, Upload, UserCircle, UserPlus, Video } from "lucide-react";
+import { Bell, LogIn, LogOut, Menu, Search, Sparkles, Tv, Upload, UserCircle, UserPlus, Video } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { fetchNotifications, markAllNotificationsRead, markNotificationRead } from "../services/apiClient";
+import type { AppNotification } from "../types/notification";
 import { useToast } from "./ToastProvider";
 
 type HeaderProps = {
@@ -17,7 +19,11 @@ export function Header({ onMenuClick }: HeaderProps) {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [authError, setAuthError] = useState("");
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const notificationMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!isAccountOpen) {
@@ -33,6 +39,35 @@ export function Header({ onMenuClick }: HeaderProps) {
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [isAccountOpen]);
+
+  useEffect(() => {
+    if (!isNotificationOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!notificationMenuRef.current?.contains(event.target as Node)) {
+        setIsNotificationOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isNotificationOpen]);
+
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+    fetchNotifications()
+      .then((result) => {
+        setNotifications(result.items);
+        setUnreadCount(result.unreadCount);
+      })
+      .catch(() => undefined);
+  }, [user]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -53,6 +88,22 @@ export function Header({ onMenuClick }: HeaderProps) {
     } finally {
       setIsAuthSubmitting(false);
     }
+  }
+
+  async function handleNotificationClick(notification: AppNotification) {
+    await markNotificationRead(notification.id).catch(() => undefined);
+    setNotifications((items) => items.map((item) => (item.id === notification.id ? { ...item, readAt: item.readAt ?? new Date().toISOString() } : item)));
+    setUnreadCount((count) => Math.max(count - (notification.readAt ? 0 : 1), 0));
+    setIsNotificationOpen(false);
+    if (notification.linkUrl) {
+      navigate(notification.linkUrl);
+    }
+  }
+
+  async function handleReadAllNotifications() {
+    await markAllNotificationsRead();
+    setNotifications((items) => items.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })));
+    setUnreadCount(0);
   }
 
   return (
@@ -87,6 +138,47 @@ export function Header({ onMenuClick }: HeaderProps) {
           <Upload size={18} />
           <span>업로드</span>
         </Link>
+        {user && (
+          <div className="notification-menu" ref={notificationMenuRef}>
+            <button
+              className="icon-button notification-button"
+              type="button"
+              aria-label="알림"
+              aria-expanded={isNotificationOpen}
+              onClick={() => setIsNotificationOpen((isOpen) => !isOpen)}
+            >
+              <Bell size={22} />
+              {unreadCount > 0 && <span className="notification-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>}
+            </button>
+            {isNotificationOpen && (
+              <div className="notification-popover">
+                <div className="notification-popover-header">
+                  <strong>알림</strong>
+                  <button type="button" onClick={handleReadAllNotifications} disabled={unreadCount === 0}>
+                    모두 읽음
+                  </button>
+                </div>
+                {notifications.length > 0 ? (
+                  <div className="notification-list">
+                    {notifications.map((notification) => (
+                      <button
+                        className={`notification-item ${notification.readAt ? "" : "notification-item-unread"}`}
+                        key={notification.id}
+                        type="button"
+                        onClick={() => void handleNotificationClick(notification)}
+                      >
+                        <span>{notification.message}</span>
+                        <small>{notification.createdAt}</small>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="notification-empty">새 알림이 없습니다.</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <div className="account-menu" ref={accountMenuRef}>
           <button
             className="icon-button"

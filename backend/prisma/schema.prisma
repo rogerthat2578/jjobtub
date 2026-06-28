@@ -38,6 +38,14 @@ enum PlaylistKind {
   CUSTOM
 }
 
+enum NotificationType {
+  COMMENT
+  REPLY
+  COMMENT_LIKE
+  VIDEO_LIKE
+  SUBSCRIPTION
+}
+
 model User {
   id          String    @id @default(cuid())
   email       String    @unique
@@ -52,6 +60,7 @@ model User {
   videoViews  VideoView[]
   playlists   Playlist[]
   subscriptions ChannelSubscription[]
+  notifications Notification[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -233,4 +242,17 @@ model CommentLike {
 
   @@unique([commentId, userId])
   @@index([userId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  message   String
+  linkUrl   String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, readAt, createdAt])
 }

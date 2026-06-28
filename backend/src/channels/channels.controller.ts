@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 import { ChannelsService } from './channels.service';
 import { UpdateChannelDto } from './dto/update-channel.dto';
@@ -22,9 +23,26 @@ export class ChannelsController {
     return this.channelsService.getChannelPlaylists(id);
   }
 
+  @Get(':id/assets/:kind')
+  async getChannelAsset(@Param('id') id: string, @Param('kind') kind: 'avatar' | 'banner') {
+    const file = await this.channelsService.getChannelAsset(id, kind);
+    return new StreamableFile(file.stream, { type: file.mimeType });
+  }
+
   @Patch(':id')
   updateChannel(@Param('id') id: string, @Body() dto: UpdateChannelDto, @Req() request: Request) {
     return this.channelsService.updateChannel(id, dto, request);
+  }
+
+  @Post(':id/assets/:kind')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5242880 } }))
+  uploadChannelAsset(
+    @Param('id') id: string,
+    @Param('kind') kind: 'avatar' | 'banner',
+    @UploadedFile() file: any,
+    @Req() request: Request,
+  ) {
+    return this.channelsService.uploadChannelAsset(id, kind, file, request);
   }
 
   @Post(':id/subscribe')
