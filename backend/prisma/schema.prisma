@@ -101,6 +101,7 @@ model Video {
   tags            String[]        @default([])
   publishedAt     DateTime?
   files           VideoFile[]
+  subtitles       VideoSubtitle[]
   comments        Comment[]
   likes           VideoLike[]
   views           VideoView[]
@@ -188,6 +189,20 @@ model VideoFile {
   createdAt   DateTime      @default(now())
 
   @@index([videoId, kind])
+}
+
+model VideoSubtitle {
+  id          String   @id @default(cuid())
+  videoId     String
+  video       Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  language    String
+  label       String
+  storagePath String
+  mimeType    String
+  createdAt   DateTime @default(now())
+
+  @@index([videoId])
+  @@unique([videoId, language])
 }
 
 model Comment {

@@ -12,14 +12,25 @@ import {
   Settings,
   SlidersHorizontal,
   Volume2,
+  VolumeX,
 } from "lucide-react";
-import { type MouseEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type SyntheticEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 type LocalVideoPlayerProps = {
   title: string;
   poster: string;
   sourceUrl: string;
   availableQualities?: number[];
+  subtitles?: Array<{ id: string; language: string; label: string; src: string }>;
   onEnded?: () => void;
 };
 
@@ -36,9 +47,11 @@ const QUALITY_OPTIONS = [
   { value: "144", height: 144, label: "144p" },
 ];
 
-export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities = [], onEnded }: LocalVideoPlayerProps) {
+export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities = [], subtitles = [], onEnded }: LocalVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const lastAudibleVolumeRef = useRef(1);
+  const hasAppliedTimeParamRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -47,7 +60,6 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isLooping, setIsLooping] = useState(false);
   const [selectedCaption, setSelectedCaption] = useState("off");
-  const [textTracks, setTextTracks] = useState<Array<{ id: string; label: string }>>([]);
   const [settingsPanel, setSettingsPanel] = useState<SettingsPanel | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -56,6 +68,7 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
     [availableQualities],
   );
   const selectedSourceUrl = useMemo(() => buildQualityUrl(sourceUrl, quality), [quality, sourceUrl]);
+  const canUsePictureInPicture = typeof document !== "undefined" && document.pictureInPictureEnabled;
 
   useEffect(() => {
     if (quality !== "auto" && !qualityOptions.some((option) => option.value === quality)) {
@@ -69,6 +82,10 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
       video.playbackRate = playbackRate;
     }
   }, [playbackRate, selectedSourceUrl]);
+
+  useEffect(() => {
+    hasAppliedTimeParamRef.current = false;
+  }, [sourceUrl]);
 
   useEffect(() => {
     if (!settingsPanel && !contextMenu) {
@@ -102,6 +119,34 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
     }
   }
 
+  function setPlayerVolume(nextVolume: number) {
+    const normalizedVolume = Math.min(Math.max(nextVolume, 0), 1);
+    setVolume(normalizedVolume);
+    if (normalizedVolume > 0) {
+      lastAudibleVolumeRef.current = normalizedVolume;
+    }
+    if (videoRef.current) {
+      videoRef.current.volume = normalizedVolume;
+      videoRef.current.muted = normalizedVolume === 0;
+    }
+  }
+
+  function toggleMute() {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+    if (!video.muted && volume > 0) {
+      video.muted = true;
+      setVolume(0);
+      return;
+    }
+    const restoredVolume = lastAudibleVolumeRef.current || 1;
+    video.muted = false;
+    video.volume = restoredVolume;
+    setVolume(restoredVolume);
+  }
+
   function handlePlayerPointerDownCapture(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.button !== 0) {
       return;
@@ -124,6 +169,41 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
       return;
     }
     togglePlayback();
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+    if (event.key === " " || event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      togglePlayback();
+    }
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      video.currentTime = Math.max(video.currentTime - 5, 0);
+    }
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      video.currentTime = Math.min(video.currentTime + 5, duration || video.duration || video.currentTime + 5);
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setPlayerVolume(volume + 0.05);
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setPlayerVolume(volume - 0.05);
+    }
+    if (event.key.toLowerCase() === "f") {
+      event.preventDefault();
+      void containerRef.current?.requestFullscreen();
+    }
+    if (event.key.toLowerCase() === "m") {
+      event.preventDefault();
+      toggleMute();
+    }
   }
 
   function handleSeek(event: MouseEvent<HTMLDivElement>) {
@@ -151,6 +231,8 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
     const url = new URL(window.location.href);
     if (withTimestamp && video) {
       url.searchParams.set("t", String(Math.floor(video.currentTime)));
+    } else {
+      url.searchParams.delete("t");
     }
     await navigator.clipboard.writeText(url.toString());
     setContextMenu(null);
@@ -158,32 +240,40 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
 
   async function openPictureInPicture() {
     const video = videoRef.current;
-    if (!video || !document.pictureInPictureEnabled) {
+    if (!video || !canUsePictureInPicture) {
       return;
     }
-    await video.requestPictureInPicture();
-    setContextMenu(null);
+    try {
+      if (document.pictureInPictureElement === video) {
+        await document.exitPictureInPicture();
+      } else {
+        await video.requestPictureInPicture();
+      }
+    } finally {
+      setContextMenu(null);
+    }
   }
 
-  function refreshTextTracks() {
-    const video = videoRef.current;
-    if (!video) {
-      setTextTracks([]);
+  function applyTimeParam(event: SyntheticEvent<HTMLVideoElement>) {
+    const video = event.currentTarget;
+    setDuration(video.duration || 0);
+    if (hasAppliedTimeParamRef.current) {
       return;
     }
-    setTextTracks(
-      Array.from(video.textTracks).map((track, index) => ({
-        id: String(index),
-        label: track.label || track.language || `자막 ${index + 1}`,
-      })),
-    );
+    const timestamp = parseTimeParam(new URLSearchParams(window.location.search).get("t"));
+    if (timestamp === null) {
+      hasAppliedTimeParamRef.current = true;
+      return;
+    }
+    video.currentTime = Math.min(timestamp, video.duration || timestamp);
+    hasAppliedTimeParamRef.current = true;
   }
 
   function changeCaption(nextCaption: string) {
     const video = videoRef.current;
     if (video) {
       Array.from(video.textTracks).forEach((track, index) => {
-        track.mode = nextCaption === String(index) ? "showing" : "disabled";
+        track.mode = nextCaption === subtitles[index]?.id ? "showing" : "disabled";
       });
     }
     setSelectedCaption(nextCaption);
@@ -206,7 +296,10 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
     <div
       className="custom-player"
       ref={containerRef}
+      tabIndex={0}
       onContextMenu={handleContextMenu}
+      onDoubleClick={() => containerRef.current?.requestFullscreen()}
+      onKeyDown={handleKeyDown}
       onPointerDownCapture={handlePlayerPointerDownCapture}
       onPointerDown={handlePlayerPointerDown}
     >
@@ -220,17 +313,25 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
         loop={isLooping}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
-        onLoadedMetadata={(event) => {
-          setDuration(event.currentTarget.duration || 0);
-          refreshTextTracks();
-        }}
+        onLoadedMetadata={applyTimeParam}
         onTimeUpdate={(event) => {
           const video = event.currentTarget;
           setProgress(video.duration ? (video.currentTime / video.duration) * 100 : 0);
         }}
         onEnded={onEnded}
         onContextMenu={(event) => event.preventDefault()}
-      />
+      >
+        {subtitles.map((subtitle, index) => (
+          <track
+            key={subtitle.id}
+            kind="subtitles"
+            src={subtitle.src}
+            srcLang={subtitle.language}
+            label={subtitle.label}
+            default={index === 0 && selectedCaption === subtitle.id}
+          />
+        ))}
+      </video>
 
       <div className="player-control-layer" data-player-interactive="true" aria-label={`${title} 플레이어 컨트롤`}>
         <div className="player-progress" onClick={handleSeek} role="slider" aria-label="재생 위치" aria-valuenow={Math.round(progress)}>
@@ -244,8 +345,15 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
             {formatTime(videoRef.current?.currentTime ?? 0)} / {formatTime(duration)}
           </span>
           <div className="player-spacer" />
-          <label className="player-volume">
-            <Volume2 size={19} />
+          <div className="player-volume">
+            <button
+              className="player-icon-button player-volume-toggle"
+              type="button"
+              onClick={toggleMute}
+              aria-label={volume === 0 ? "음소거 해제" : "음소거"}
+            >
+              {volume === 0 ? <VolumeX size={19} /> : <Volume2 size={19} />}
+            </button>
             <input
               type="range"
               min="0"
@@ -254,14 +362,10 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
               value={volume}
               aria-label="볼륨"
               onChange={(event) => {
-                const nextVolume = Number(event.target.value);
-                setVolume(nextVolume);
-                if (videoRef.current) {
-                  videoRef.current.volume = nextVolume;
-                }
+                setPlayerVolume(Number(event.target.value));
               }}
             />
-          </label>
+          </div>
           <button
             className="player-icon-button"
             type="button"
@@ -313,7 +417,7 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
                   자막
                 </span>
                 <span>
-                  {captionLabel(selectedCaption, textTracks)}
+                  {captionLabel(selectedCaption, subtitles)}
                   <ChevronRight size={17} />
                 </span>
               </button>
@@ -360,7 +464,7 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
               >
                 <span>{selectedCaption === "off" ? "✓ " : ""}사용 안함</span>
               </button>
-              {textTracks.map((track) => (
+              {subtitles.map((track) => (
                 <button
                   className={`player-settings-row ${selectedCaption === track.id ? "player-settings-row-active" : ""}`}
                   key={track.id}
@@ -427,7 +531,7 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
             <Repeat size={18} />
             {isLooping ? "연속 재생 끄기" : "연속 재생"}
           </button>
-          <button type="button" onClick={() => void openPictureInPicture()}>
+          <button type="button" onClick={() => void openPictureInPicture()} disabled={!canUsePictureInPicture}>
             <Maximize size={18} />
             소형 플레이어
           </button>
@@ -472,6 +576,31 @@ function playbackRateLabel(value: number) {
 
 function clampRate(value: number) {
   return Number(Math.min(Math.max(value, 0.25), 3).toFixed(2));
+}
+
+function parseTimeParam(value: string | null) {
+  if (!value) {
+    return null;
+  }
+  const normalizedValue = value.trim().toLowerCase();
+  if (/^\d+$/.test(normalizedValue)) {
+    return Number(normalizedValue);
+  }
+  if (/^\d{1,2}:\d{1,2}(:\d{1,2})?$/.test(normalizedValue)) {
+    return normalizedValue
+      .split(":")
+      .map(Number)
+      .reduce((total, part) => total * 60 + part, 0);
+  }
+  const match = normalizedValue.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/);
+  if (!match) {
+    return null;
+  }
+  const hours = Number(match[1] ?? 0);
+  const minutes = Number(match[2] ?? 0);
+  const seconds = Number(match[3] ?? 0);
+  const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+  return totalSeconds > 0 ? totalSeconds : null;
 }
 
 function formatTime(value: number) {

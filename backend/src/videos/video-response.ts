@@ -5,6 +5,7 @@ type VideoViewerState = {
   likedByMe?: boolean;
   subscribedByMe?: boolean;
   availableQualities?: number[];
+  subtitles?: Array<{ id: string; language: string; label: string }>;
 };
 
 export function toVideoListItem(video: VideoWithChannel) {
@@ -41,6 +42,11 @@ export function toVideoDetail(video: VideoWithChannel, viewerState: VideoViewerS
     likeCount: video.likeCount,
     likedByMe: Boolean(viewerState.likedByMe),
     availableQualities: viewerState.availableQualities ?? [],
+    subtitles:
+      viewerState.subtitles?.map((subtitle) => ({
+        ...subtitle,
+        src: `/api/videos/${video.id}/subtitles/${subtitle.id}`,
+      })) ?? [],
     streamUrl: `/api/videos/${video.id}/stream`,
     embedUrl:
       video.source === 'YOUTUBE' && video.externalVideoId

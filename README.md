@@ -187,9 +187,10 @@ API_PORT=4000
 STORAGE_ROOT="./storage"
 MAX_UPLOAD_BYTES=524288000
 FFMPEG_PATH="C:\\dev\\tools\\ffmpeg\\ffmpeg.exe"
+FFPROBE_PATH="C:\\dev\\tools\\ffmpeg\\ffprobe.exe"
 ```
 
-이 값을 `backend/.env`에 저장합니다. `.env`는 git에 올리지 않습니다. `FFMPEG_PATH`는 MP4 썸네일 자동 추출과 hover 미리보기 preview mp4 생성에 사용하며, 값이 없으면 서버는 `ffmpeg` 명령 또는 `C:\dev\tools\ffmpeg\ffmpeg.exe`를 순서대로 찾습니다.
+이 값을 `backend/.env`에 저장합니다. `.env`는 git에 올리지 않습니다. `backend/.env.example`을 복사해서 시작할 수 있습니다. `FFMPEG_PATH`는 MP4 썸네일 자동 추출과 hover 미리보기 preview mp4 생성에 사용하며, `FFPROBE_PATH`는 화질 변환 가능 높이 확인에 사용합니다. 값이 없으면 서버는 `ffmpeg`/`ffprobe` 명령 또는 `C:\dev\tools\ffmpeg\*.exe`를 순서대로 찾습니다.
 
 ### 2. 의존성 설치
 
@@ -294,6 +295,8 @@ npm run frontend:build
 - HTTP Range 기반 MP4 스트리밍
 - 로컬 MP4 커스텀 플레이어, 우클릭 메뉴, 재생속도 0.05 단위 조절, 화질 선택 UI
 - 신규 MP4 업로드 시 원본 높이 이하의 144p/240p/360p/480p/720p/1080p/1440p/2160p 변환 파일 생성 및 화질 스트림 fallback
+- 기존 로컬 MP4 영상의 화질 변환 재처리
+- WebVTT 자막 업로드 및 플레이어 자막 선택
 - 회원가입
 - 로그인/로그아웃/현재 사용자 조회
 - 쿠키 기반 세션

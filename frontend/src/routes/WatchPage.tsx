@@ -1,5 +1,5 @@
 import { Bell, ListPlus, Pencil, Share2, ThumbsUp, Trash2 } from "lucide-react";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { CommentList } from "../components/CommentList";
@@ -16,11 +16,13 @@ import {
   fetchVideo,
   fetchVideos,
   incrementVideoView,
+  reprocessVideoQualities,
   toggleCommentLike,
   toggleChannelSubscription,
   toggleVideoLike,
   updateComment,
   updateVideo,
+  uploadVideoSubtitle,
   type VideoListResult,
 } from "../services/apiClient";
 import type { Channel } from "../types/channel";
@@ -71,7 +73,10 @@ export function WatchPage() {
   const [isLikeBusy, setIsLikeBusy] = useState(false);
   const [isSubscriptionBusy, setIsSubscriptionBusy] = useState(false);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isProcessingQualities, setIsProcessingQualities] = useState(false);
+  const [isUploadingSubtitle, setIsUploadingSubtitle] = useState(false);
   const viewedVideoIdRef = useRef<string | null>(null);
+  const subtitleInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!videoId) {
@@ -258,6 +263,55 @@ export function WatchPage() {
     }
   }
 
+  async function handleReprocessQualities() {
+    if (!videoId || !video || isProcessingQualities) {
+      return;
+    }
+    setIsProcessingQualities(true);
+    setManagementError("");
+    try {
+      setVideo({ ...video, status: "PROCESSING" });
+      const result = await reprocessVideoQualities(videoId);
+      setVideo((currentVideo) =>
+        currentVideo
+          ? {
+              ...currentVideo,
+              status: result.status,
+              availableQualities: result.availableQualities,
+            }
+          : currentVideo,
+      );
+      showToast("화질 변환이 완료됐습니다.", "success");
+    } catch {
+      setVideo((currentVideo) => (currentVideo ? { ...currentVideo, status: "FAILED" } : currentVideo));
+      showToast("화질 변환에 실패했습니다.", "error");
+    } finally {
+      setIsProcessingQualities(false);
+    }
+  }
+
+  async function handleSubtitleChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!videoId || !video || !file || isUploadingSubtitle) {
+      return;
+    }
+    setIsUploadingSubtitle(true);
+    setManagementError("");
+    try {
+      const subtitle = await uploadVideoSubtitle(videoId, file, { language: "ko", label: "한국어" });
+      setVideo({
+        ...video,
+        subtitles: [...(video.subtitles ?? []).filter((item) => item.language !== subtitle.language), subtitle],
+      });
+      showToast("자막을 업로드했습니다.", "success");
+    } catch {
+      showToast("자막 업로드에 실패했습니다. WebVTT(.vtt) 파일인지 확인해 주세요.", "error");
+    } finally {
+      setIsUploadingSubtitle(false);
+    }
+  }
+
   function handleSaveClick() {
     if (!user) {
       showToast("로그인 후 재생목록에 저장할 수 있습니다.", "error");
@@ -368,6 +422,7 @@ export function WatchPage() {
             poster={video.thumbnailUrl}
             sourceUrl={video.videoUrl}
             availableQualities={video.availableQualities ?? []}
+            subtitles={video.subtitles ?? []}
             onEnded={() => {
               if (nextPlaylistVideo && playlistId) {
                 navigate(`/watch/${nextPlaylistVideo.id}?playlist=${playlistId}&order=${playlistOrder}`);
@@ -445,6 +500,23 @@ export function WatchPage() {
                   <Trash2 size={17} />
                   삭제
                 </button>
+                {video.source === "LOCAL" && (
+                  <>
+                    <button className="pill-button" type="button" onClick={handleReprocessQualities} disabled={isProcessingQualities}>
+                      {isProcessingQualities ? "변환 중" : "화질 재처리"}
+                    </button>
+                    <button className="pill-button" type="button" onClick={() => subtitleInputRef.current?.click()} disabled={isUploadingSubtitle}>
+                      {isUploadingSubtitle ? "자막 업로드 중" : "자막 업로드"}
+                    </button>
+                    <input
+                      ref={subtitleInputRef}
+                      className="visually-hidden"
+                      type="file"
+                      accept=".vtt,text/vtt"
+                      onChange={handleSubtitleChange}
+                    />
+                  </>
+                )}
               </>
             )}
             <button

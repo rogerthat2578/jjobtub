@@ -20,4 +20,5 @@ export type Video = {
   visibility?: string;
   status?: string;
   availableQualities?: number[];
+  subtitles?: Array<{ id: string; language: string; label: string; src: string }>;
 };

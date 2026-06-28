@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from '../auth/auth.service';
+import { toPlaylistResponse } from '../playlists/playlists.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { toVideoListItem } from '../videos/video-response';
 import { UpdateChannelDto } from './dto/update-channel.dto';
@@ -48,6 +49,29 @@ export class ChannelsService {
       items: videos.map(toVideoListItem),
       nextCursor: null,
     };
+  }
+
+  async getChannelPlaylists(id: string) {
+    const channel = await this.prisma.channel.findUnique({ where: { id } });
+    if (!channel) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    const playlists = await this.prisma.playlist.findMany({
+      where: { ownerId: channel.ownerId, kind: 'CUSTOM' },
+      include: {
+        items: {
+          where: { video: { status: 'READY', visibility: 'PUBLIC' } },
+          include: { video: { include: { channel: true } } },
+          orderBy: [{ position: 'asc' }, { createdAt: 'desc' }],
+          take: 6,
+        },
+      },
+      orderBy: [{ updatedAt: 'desc' }],
+      take: 24,
+    });
+
+    return { items: playlists.map(toPlaylistResponse) };
   }
 
   async updateChannel(id: string, dto: UpdateChannelDto, request: Request) {

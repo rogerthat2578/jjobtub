@@ -36,6 +36,15 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -885,6 +894,10 @@ img {
   gap: 8px;
 }
 
+.player-volume-toggle {
+  flex: 0 0 auto;
+}
+
 .player-volume input {
   width: 86px;
   accent-color: #ffffff;
@@ -977,8 +990,13 @@ img {
 
 .player-settings-row:hover,
 .player-settings-row-active,
-.player-context-menu button:hover {
+.player-context-menu button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.12);
+}
+
+.player-context-menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .player-settings-row small {
@@ -1076,8 +1094,16 @@ img {
   color: var(--muted);
 }
 
+.watch-meta-row > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .watch-actions {
   gap: 8px;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .danger-button {

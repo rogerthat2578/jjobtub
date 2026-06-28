@@ -98,6 +98,23 @@ export class VideosController {
     return this.videosService.uploadThumbnail(id, file, request);
   }
 
+  @Post(':id/process/qualities')
+  reprocessQualities(@Param('id') id: string, @Req() request: Request) {
+    return this.videosService.reprocessQualities(id, request);
+  }
+
+  @Post(':id/subtitles')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 1048576 } }))
+  uploadSubtitle(
+    @Param('id') id: string,
+    @UploadedFile() file: any,
+    @Body('language') language: string | undefined,
+    @Body('label') label: string | undefined,
+    @Req() request: Request,
+  ) {
+    return this.videosService.uploadSubtitle(id, file, { language, label }, request);
+  }
+
   @Get(':id/stream')
   async streamOriginal(
     @Param('id') id: string,
@@ -134,5 +151,20 @@ export class VideosController {
     });
 
     return thumbnail.stream ? new StreamableFile(thumbnail.stream) : thumbnail.body;
+  }
+
+  @Get(':id/subtitles/:subtitleId')
+  async getSubtitle(
+    @Param('id') id: string,
+    @Param('subtitleId') subtitleId: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const subtitle = await this.videosService.getSubtitle(id, subtitleId);
+    response.set({
+      'Content-Type': subtitle.contentType,
+      'Cache-Control': 'public, max-age=300',
+    });
+
+    return new StreamableFile(subtitle.stream);
   }
 }

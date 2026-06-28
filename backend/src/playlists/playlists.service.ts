@@ -53,8 +53,15 @@ export class PlaylistsService {
   }
 
   async listPlaylistVideos(id: string, request: Request, order: string = 'manual') {
-    const user = await this.requireCurrentUser(request);
-    const playlist = await this.assertPlaylistOwner(id, user.id);
+    const user = await this.authService.getCurrentUser(request);
+    const playlist = await this.prisma.playlist.findUnique({ where: { id } });
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found');
+    }
+    const isOwner = Boolean(user && playlist.ownerId === user.id);
+    if (!isOwner && playlist.kind !== 'CUSTOM') {
+      throw new ForbiddenException('Only the playlist owner can view this playlist');
+    }
     const playlistOrder = normalizePlaylistOrder(order);
     const items = await this.prisma.playlistItem.findMany({
       where: { playlistId: playlist.id },
@@ -67,7 +74,7 @@ export class PlaylistsService {
       playlist: toPlaylistResponse({ ...playlist, items }),
       items: items
         .map((item) => item.video)
-        .filter((video) => video.status === 'READY' && video.visibility === 'PUBLIC')
+        .filter((video) => isOwner || (video.status === 'READY' && video.visibility === 'PUBLIC'))
         .map(toVideoListItem),
       nextCursor: null,
     };
@@ -170,7 +177,7 @@ export class PlaylistsService {
   }
 }
 
-function toPlaylistResponse(playlist: PlaylistWithItems) {
+export function toPlaylistResponse(playlist: PlaylistWithItems) {
   const items = playlist.items ?? [];
   return {
     id: playlist.id,

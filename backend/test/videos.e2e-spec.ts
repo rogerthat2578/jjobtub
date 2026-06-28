@@ -103,6 +103,12 @@ describe('Videos API', () => {
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       create: jest.fn().mockResolvedValue({ id: 'file-1' }),
     },
+    videoSubtitle: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findUnique: jest.fn().mockResolvedValue(null),
+      findFirst: jest.fn().mockResolvedValue(null),
+      upsert: jest.fn().mockResolvedValue({ id: 'subtitle-1', language: 'ko', label: '한국어' }),
+    },
   };
 
   beforeEach(() => {
@@ -126,6 +132,10 @@ describe('Videos API', () => {
     prisma.videoView.deleteMany.mockResolvedValue({ count: 1 });
     prisma.videoFile.findMany.mockResolvedValue([{ storagePath: 'videos/video-1/original.mp4' }]);
     prisma.videoFile.findFirst.mockResolvedValue(null);
+    prisma.videoSubtitle.findMany.mockResolvedValue([]);
+    prisma.videoSubtitle.findUnique.mockResolvedValue(null);
+    prisma.videoSubtitle.findFirst.mockResolvedValue(null);
+    prisma.videoSubtitle.upsert.mockResolvedValue({ id: 'subtitle-1', language: 'ko', label: '한국어' });
     prisma.session.findUnique.mockResolvedValue({
       id: 'session-1',
       userId: 'user-1',
@@ -171,7 +181,7 @@ describe('Videos API', () => {
     expect(response.body.nextCursor).toBeNull();
   });
 
-  it('searches by title, description, category, and channel name', async () => {
+  it('searches by title, description, category, tags, and channel name', async () => {
     await request(app.getHttpServer()).get('/api/videos?q=testing').expect(200);
 
     expect(prisma.video.findMany).toHaveBeenCalledWith(
@@ -181,6 +191,7 @@ describe('Videos API', () => {
             { title: { contains: 'testing', mode: 'insensitive' } },
             { description: { contains: 'testing', mode: 'insensitive' } },
             { category: { contains: 'testing', mode: 'insensitive' } },
+            { tags: { has: 'testing' } },
             { channel: { name: { contains: 'testing', mode: 'insensitive' } } },
           ],
         }),

@@ -43,6 +43,7 @@ type ApiVideoListItem = {
   visibility?: string;
   status?: string;
   availableQualities?: number[];
+  subtitles?: Array<{ id: string; language: string; label: string; src: string }>;
 };
 
 type ApiVideoDetail = ApiVideoListItem & {
@@ -198,6 +199,11 @@ export async function fetchChannelVideos(id: string) {
   return mapVideoList(data.items);
 }
 
+export async function fetchChannelPlaylists(id: string) {
+  const data = await request<{ items: ApiPlaylist[] }>(`/channels/${id}/playlists`);
+  return data.items.map(mapPlaylist);
+}
+
 export async function fetchComments(videoId: string) {
   const data = await request<{ items: ApiComment[] }>(`/videos/${videoId}/comments`);
   return data.items.map((comment) => mapComment(videoId, comment));
@@ -278,6 +284,23 @@ export async function uploadVideoFile(videoId: string, file: File) {
 
 export async function uploadVideoThumbnail(videoId: string, file: File, onProgress?: (progress: number) => void) {
   return uploadFileWithProgress<{ videoId: string; thumbnailUrl: string }>(`/videos/${videoId}/thumbnail`, file, onProgress);
+}
+
+export async function uploadVideoSubtitle(videoId: string, file: File, input: { language: string; label: string }) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("language", input.language);
+  form.append("label", input.label);
+  return request<{ id: string; language: string; label: string; src: string }>(`/videos/${videoId}/subtitles`, {
+    method: "POST",
+    body: form,
+  });
+}
+
+export async function reprocessVideoQualities(videoId: string) {
+  return request<{ videoId: string; status: string; availableQualities: number[] }>(`/videos/${videoId}/process/qualities`, {
+    method: "POST",
+  });
 }
 
 export async function uploadVideoFileWithProgress(videoId: string, file: File, onProgress?: (progress: number) => void) {
@@ -441,6 +464,10 @@ function mapVideo(item: ApiVideoListItem | ApiVideoDetail): Video {
     visibility: "visibility" in item ? item.visibility : undefined,
     status: "status" in item ? item.status : undefined,
     availableQualities: "availableQualities" in item ? item.availableQualities ?? [] : [],
+    subtitles:
+      "subtitles" in item
+        ? (item.subtitles ?? []).map((subtitle) => ({ ...subtitle, src: absoluteApiUrl(subtitle.src) }))
+        : [],
   };
 }
 

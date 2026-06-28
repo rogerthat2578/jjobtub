@@ -36,6 +36,7 @@ export class VideosService {
               { title: { contains: search, mode: 'insensitive' } },
               { description: { contains: search, mode: 'insensitive' } },
               { category: { contains: search, mode: 'insensitive' } },
+              { tags: { has: search } },
               { channel: { name: { contains: search, mode: 'insensitive' } } },
             ]
           : undefined,
@@ -155,9 +156,10 @@ export class VideosService {
     }
 
     const user = request ? await this.authService.getCurrentUser(request) : null;
-    const availableQualities = video.source === 'LOCAL' ? await this.getAvailableQualities(id) : [];
+    const [availableQualities, subtitles] =
+      video.source === 'LOCAL' ? await Promise.all([this.getAvailableQualities(id), this.listSubtitles(id)]) : [[], []];
     if (!user) {
-      return toVideoDetail(video, { availableQualities });
+      return toVideoDetail(video, { availableQualities, subtitles });
     }
 
     const [like, subscription] = await Promise.all([
@@ -173,6 +175,7 @@ export class VideosService {
       likedByMe: Boolean(like),
       subscribedByMe: Boolean(subscription),
       availableQualities,
+      subtitles,
     });
   }
 
@@ -327,6 +330,93 @@ export class VideosService {
     };
   }
 
+  async reprocessQualities(id: string, request: Request) {
+    const video = await this.assertVideoOwner(id, request);
+    if (video.source !== 'LOCAL') {
+      throw new BadRequestException('Only local videos can be processed');
+    }
+
+    const file = await this.prisma.videoFile.findFirst({
+      where: { videoId: id, kind: 'ORIGINAL' },
+    });
+    if (!file) {
+      throw new NotFoundException('Original video file not found');
+    }
+
+    const { absolutePath } = await this.storage.statFile(file.storagePath);
+    await this.prisma.video.update({
+      where: { id },
+      data: { status: 'PROCESSING' },
+    });
+
+    try {
+      await this.extractAndStoreQualityVariants(id, absolutePath, true);
+      await this.prisma.video.update({
+        where: { id },
+        data: { status: 'READY' },
+      });
+    } catch {
+      await this.prisma.video.update({
+        where: { id },
+        data: { status: 'FAILED' },
+      });
+      throw new BadRequestException('Video quality processing failed');
+    }
+
+    return {
+      videoId: id,
+      status: 'READY',
+      availableQualities: await this.getAvailableQualities(id),
+    };
+  }
+
+  async uploadSubtitle(
+    id: string,
+    file: { buffer?: Buffer; mimetype?: string; originalname?: string },
+    input: { language?: string; label?: string },
+    request: Request,
+  ) {
+    await this.assertVideoOwner(id, request);
+    if (!file?.buffer) {
+      throw new BadRequestException('WebVTT subtitle file is required');
+    }
+    if (!file.originalname?.toLowerCase().endsWith('.vtt') && file.mimetype !== 'text/vtt') {
+      throw new BadRequestException('Only WebVTT .vtt subtitle files are supported');
+    }
+
+    const language = normalizeSubtitleLanguage(input.language);
+    const label = (input.label?.trim() || languageLabel(language)).slice(0, 60);
+    const existingSubtitle = await this.prisma.videoSubtitle.findUnique({
+      where: { videoId_language: { videoId: id, language } },
+      select: { storagePath: true },
+    });
+    const savedFile = await this.storage.saveSubtitle(id, language, file.buffer);
+    const subtitle = await this.prisma.videoSubtitle.upsert({
+      where: { videoId_language: { videoId: id, language } },
+      create: {
+        videoId: id,
+        language,
+        label,
+        storagePath: savedFile.storagePath,
+        mimeType: 'text/vtt',
+      },
+      update: {
+        label,
+        storagePath: savedFile.storagePath,
+        mimeType: 'text/vtt',
+      },
+      select: { id: true, language: true, label: true },
+    });
+    if (existingSubtitle && existingSubtitle.storagePath !== savedFile.storagePath) {
+      await this.storage.deleteFile(existingSubtitle.storagePath);
+    }
+
+    return {
+      ...subtitle,
+      src: `/api/videos/${id}/subtitles/${subtitle.id}`,
+    };
+  }
+
   async incrementView(id: string, request?: Request) {
     const video = await this.prisma.video.update({
       where: { id },
@@ -408,13 +498,19 @@ export class VideosService {
 
   async deleteVideo(id: string, request: Request) {
     await this.assertVideoOwner(id, request);
-    const files = await this.prisma.videoFile.findMany({
-      where: { videoId: id },
-      select: { storagePath: true },
-    });
+    const [files, subtitles] = await Promise.all([
+      this.prisma.videoFile.findMany({
+        where: { videoId: id },
+        select: { storagePath: true },
+      }),
+      this.prisma.videoSubtitle.findMany({
+        where: { videoId: id },
+        select: { storagePath: true },
+      }),
+    ]);
 
     await this.prisma.video.delete({ where: { id } });
-    await Promise.all(files.map((file) => this.storage.deleteFile(file.storagePath)));
+    await Promise.all([...files, ...subtitles].map((file) => this.storage.deleteFile(file.storagePath)));
 
     return { ok: true };
   }
@@ -503,6 +599,20 @@ export class VideosService {
     };
   }
 
+  async getSubtitle(id: string, subtitleId: string): Promise<{ contentType: string; stream: ReadStream }> {
+    const subtitle = await this.prisma.videoSubtitle.findFirst({
+      where: { id: subtitleId, videoId: id },
+    });
+    if (!subtitle) {
+      throw new NotFoundException('Subtitle not found');
+    }
+
+    return {
+      contentType: subtitle.mimeType,
+      stream: this.storage.createFileReadStream(subtitle.storagePath),
+    };
+  }
+
   getFallbackThumbnail(id: string) {
     const label = id.slice(0, 8);
     return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
@@ -571,6 +681,14 @@ export class VideosService {
     return Array.from(new Set(files.map((file) => file.height).filter((height): height is number => Boolean(height))));
   }
 
+  private async listSubtitles(videoId: string) {
+    return this.prisma.videoSubtitle.findMany({
+      where: { videoId },
+      select: { id: true, language: true, label: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   private async extractAndStoreThumbnail(videoId: string, inputPath: string) {
     try {
       const existingFiles = await this.prisma.videoFile.findMany({
@@ -621,7 +739,7 @@ export class VideosService {
     }
   }
 
-  private async extractAndStoreQualityVariants(videoId: string, inputPath: string) {
+  private async extractAndStoreQualityVariants(videoId: string, inputPath: string, throwOnFailure = false) {
     try {
       const existingFiles = await this.prisma.videoFile.findMany({
         where: { videoId, kind: 'HLS_VARIANT' },
@@ -646,7 +764,10 @@ export class VideosService {
         ),
       );
       await Promise.all(existingFiles.map((existingFile) => this.storage.deleteFile(existingFile.storagePath)));
-    } catch {
+    } catch (error) {
+      if (throwOnFailure) {
+        throw error;
+      }
       // Keep upload successful when quality variant generation fails; playback falls back to the original file.
     }
   }
@@ -707,4 +828,17 @@ function normalizeTags(tags?: string[]) {
         .map((tag) => tag.slice(0, 30)),
     ),
   ).slice(0, 12);
+}
+
+function normalizeSubtitleLanguage(language?: string) {
+  const normalized = language?.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'ko';
+  return normalized.slice(0, 16) || 'ko';
+}
+
+function languageLabel(language: string) {
+  if (language === 'ko') return '한국어';
+  if (language === 'en') return '영어';
+  if (language === 'zh') return '중국어';
+  if (language === 'ja') return '일본어';
+  return language;
 }

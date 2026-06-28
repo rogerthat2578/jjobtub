@@ -17,6 +17,11 @@ export class ChannelsController {
     return this.channelsService.getChannelVideos(id, request);
   }
 
+  @Get(':id/playlists')
+  getChannelPlaylists(@Param('id') id: string) {
+    return this.channelsService.getChannelPlaylists(id);
+  }
+
   @Patch(':id')
   updateChannel(@Param('id') id: string, @Body() dto: UpdateChannelDto, @Req() request: Request) {
     return this.channelsService.updateChannel(id, dto, request);

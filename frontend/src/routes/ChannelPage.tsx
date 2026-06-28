@@ -7,6 +7,7 @@ import { useToast } from "../components/ToastProvider";
 import { VideoGrid } from "../components/VideoGrid";
 import {
   fetchChannel,
+  fetchChannelPlaylists,
   fetchChannelVideos,
   fetchPlaylists,
   toggleChannelSubscription,
@@ -56,19 +57,19 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
       return;
     }
 
-    Promise.all([fetchChannel(targetChannelId), fetchChannelVideos(targetChannelId)])
-      .then(([channelResult, videoResult]) => {
+    const playlistRequest = user?.channelId === targetChannelId ? fetchPlaylists() : fetchChannelPlaylists(targetChannelId);
+
+    Promise.all([fetchChannel(targetChannelId), fetchChannelVideos(targetChannelId), playlistRequest])
+      .then(([channelResult, videoResult, playlistResult]) => {
         setChannel(channelResult);
         setEditName(channelResult.name);
         setEditDescription(channelResult.description);
         setEditAvatarUrl(channelResult.avatarUrl);
         setEditBannerUrl(channelResult.bannerUrl);
         setVideos(videoResult);
+        setPlaylists(playlistResult);
         setActiveTab("home");
         setNotFound(false);
-        if (isMine) {
-          fetchPlaylists().then(setPlaylists).catch(() => setPlaylists([]));
-        }
       })
       .catch(() => setNotFound(true));
   }, [channelId, isLoading, isMine, user?.channelId]);
@@ -215,7 +216,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
         <button type="button" className={activeTab === "videos" ? "active" : ""} onClick={() => setActiveTab("videos")}>
           영상
         </button>
-        {canManageChannel && (
+        {(canManageChannel || playlists.length > 0) && (
           <button type="button" className={activeTab === "playlists" ? "active" : ""} onClick={() => setActiveTab("playlists")}>
             재생 목록
           </button>
@@ -257,7 +258,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
         </section>
       )}
 
-      {activeTab === "playlists" && canManageChannel && (
+      {activeTab === "playlists" && (
         <section className="page-stack">
           <div className="section-heading-row">
             <div>
@@ -272,7 +273,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
                   key={playlist.id}
                   playlist={playlist}
                   onEmpty={() => showToast("재생할 영상이 없습니다.", "info")}
-                  manageTo={`/library/${playlist.id}`}
+                  manageTo={canManageChannel ? `/library/${playlist.id}` : undefined}
                 />
               ))}
             </section>
