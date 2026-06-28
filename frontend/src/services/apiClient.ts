@@ -42,6 +42,7 @@ type ApiVideoListItem = {
   tags?: string[];
   visibility?: string;
   status?: string;
+  availableQualities?: number[];
 };
 
 type ApiVideoDetail = ApiVideoListItem & {
@@ -439,6 +440,7 @@ function mapVideo(item: ApiVideoListItem | ApiVideoDetail): Video {
     viewsCount: item.views,
     visibility: "visibility" in item ? item.visibility : undefined,
     status: "status" in item ? item.status : undefined,
+    availableQualities: "availableQualities" in item ? item.availableQualities ?? [] : [],
   };
 }
 

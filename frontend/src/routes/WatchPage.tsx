@@ -367,6 +367,7 @@ export function WatchPage() {
             title={video.title}
             poster={video.thumbnailUrl}
             sourceUrl={video.videoUrl}
+            availableQualities={video.availableQualities ?? []}
             onEnded={() => {
               if (nextPlaylistVideo && playlistId) {
                 navigate(`/watch/${nextPlaylistVideo.id}?playlist=${playlistId}&order=${playlistOrder}`);

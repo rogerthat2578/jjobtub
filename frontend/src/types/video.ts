@@ -19,4 +19,5 @@ export type Video = {
   viewsCount?: number;
   visibility?: string;
   status?: string;
+  availableQualities?: number[];
 };

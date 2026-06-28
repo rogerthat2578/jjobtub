@@ -155,8 +155,9 @@ export class VideosService {
     }
 
     const user = request ? await this.authService.getCurrentUser(request) : null;
+    const availableQualities = video.source === 'LOCAL' ? await this.getAvailableQualities(id) : [];
     if (!user) {
-      return toVideoDetail(video);
+      return toVideoDetail(video, { availableQualities });
     }
 
     const [like, subscription] = await Promise.all([
@@ -171,6 +172,7 @@ export class VideosService {
     return toVideoDetail(video, {
       likedByMe: Boolean(like),
       subscribedByMe: Boolean(subscription),
+      availableQualities,
     });
   }
 
@@ -559,6 +561,16 @@ export class VideosService {
     });
   }
 
+  private async getAvailableQualities(videoId: string) {
+    const files = await this.prisma.videoFile.findMany({
+      where: { videoId, kind: 'HLS_VARIANT' },
+      select: { height: true },
+      orderBy: { height: 'desc' },
+    });
+
+    return Array.from(new Set(files.map((file) => file.height).filter((height): height is number => Boolean(height))));
+  }
+
   private async extractAndStoreThumbnail(videoId: string, inputPath: string) {
     try {
       const existingFiles = await this.prisma.videoFile.findMany({
@@ -645,7 +657,7 @@ function parseQualityHeight(quality?: string) {
     return null;
   }
   const height = Number(quality);
-  return [144, 240, 360, 480, 720, 1080, 1440].includes(height) ? height : null;
+  return [144, 240, 360, 480, 720, 1080, 1440, 2160].includes(height) ? height : null;
 }
 
 function thumbnailExtension(mimeType?: string, originalName?: string) {

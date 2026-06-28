@@ -9,7 +9,7 @@ import { promisify } from 'util';
 import { StorageService } from '../storage/storage.service';
 
 const execFileAsync = promisify(execFile);
-const QUALITY_HEIGHTS = [144, 240, 360, 480, 720, 1080, 1440];
+const QUALITY_HEIGHTS = [144, 240, 360, 480, 720, 1080, 1440, 2160];
 
 @Injectable()
 export class VideoThumbnailService {

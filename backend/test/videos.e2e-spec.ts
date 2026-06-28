@@ -297,6 +297,19 @@ describe('Videos API', () => {
     });
   });
 
+  it('returns available quality variants for video details', async () => {
+    prisma.videoFile.findMany.mockResolvedValueOnce([{ height: 1080 }, { height: 720 }, { height: 720 }, { height: null }]);
+
+    const response = await request(app.getHttpServer()).get('/api/videos/video-1').expect(200);
+
+    expect(response.body.availableQualities).toEqual([1080, 720]);
+    expect(prisma.videoFile.findMany).toHaveBeenCalledWith({
+      where: { videoId: 'video-1', kind: 'HLS_VARIANT' },
+      select: { height: true },
+      orderBy: { height: 'desc' },
+    });
+  });
+
   it('uses the YouTube thumbnail URL for YouTube videos', async () => {
     prisma.video.findUnique.mockResolvedValueOnce(youtubeVideo);
 

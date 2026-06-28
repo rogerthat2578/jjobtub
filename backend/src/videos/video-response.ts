@@ -4,6 +4,7 @@ type VideoWithChannel = Video & { channel: Channel };
 type VideoViewerState = {
   likedByMe?: boolean;
   subscribedByMe?: boolean;
+  availableQualities?: number[];
 };
 
 export function toVideoListItem(video: VideoWithChannel) {
@@ -39,6 +40,7 @@ export function toVideoDetail(video: VideoWithChannel, viewerState: VideoViewerS
     status: video.status,
     likeCount: video.likeCount,
     likedByMe: Boolean(viewerState.likedByMe),
+    availableQualities: viewerState.availableQualities ?? [],
     streamUrl: `/api/videos/${video.id}/stream`,
     embedUrl:
       video.source === 'YOUTUBE' && video.externalVideoId

@@ -904,17 +904,25 @@ img {
 .player-settings-menu {
   right: 14px;
   bottom: 64px;
-  width: 238px;
+  width: 332px;
   max-height: min(72%, 420px);
   overflow: auto;
   padding: 8px;
 }
 
-.player-settings-title {
-  padding: 10px 12px 6px;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 12px;
-  font-weight: 800;
+.player-settings-menu-root {
+  width: 276px;
+}
+
+.player-settings-menu-quality {
+  width: 262px;
+  max-height: min(86%, 430px);
+}
+
+.player-settings-menu-speed {
+  width: 332px;
+  padding: 0;
+  overflow: hidden;
 }
 
 .player-settings-row,
@@ -937,6 +945,36 @@ img {
   justify-content: space-between;
 }
 
+.player-settings-root-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-settings-row-label {
+  min-width: 110px;
+}
+
+.player-settings-header {
+  width: 100%;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0 14px;
+  color: #ffffff;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.player-settings-header:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .player-settings-row:hover,
 .player-settings-row-active,
 .player-context-menu button:hover {
@@ -949,9 +987,69 @@ img {
   font-size: 11px;
 }
 
-.player-speed-list {
-  max-height: 260px;
-  overflow: auto;
+.player-speed-value {
+  display: block;
+  margin-top: 26px;
+  color: #ffffff;
+  font-size: 20px;
+  text-align: center;
+}
+
+.player-speed-slider-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 18px 10px;
+}
+
+.player-speed-slider-row input {
+  width: 100%;
+  accent-color: #ffffff;
+}
+
+.player-speed-step {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.player-speed-step:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.player-speed-presets {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  padding: 8px 18px 4px;
+}
+
+.player-speed-presets button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.13);
+  font-weight: 900;
+}
+
+.player-speed-preset-active,
+.player-speed-presets button:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.player-speed-caption {
+  display: block;
+  padding: 0 18px 14px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
 }
 
 .player-context-menu {
