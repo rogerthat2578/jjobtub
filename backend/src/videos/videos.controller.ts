@@ -102,9 +102,10 @@ export class VideosController {
   async streamOriginal(
     @Param('id') id: string,
     @Headers('range') range: string | undefined,
+    @Query('quality') quality: string | undefined,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const streamResponse = await this.videosService.streamOriginal(id, range);
+    const streamResponse = await this.videosService.streamOriginal(id, range, quality);
     response.status(streamResponse.statusCode);
     response.set(streamResponse.headers);
 

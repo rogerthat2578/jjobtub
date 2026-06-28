@@ -530,6 +530,29 @@ describe('Videos API', () => {
     });
   });
 
+  it('preserves line breaks when updating a video description', async () => {
+    const description = "제우스 (ZEUS) 'PP44' Official MV\n출처 : https://youtu.be/XLo5Y66t4HI?si=1mjnRmNk5HO-RCCD";
+    prisma.video.update.mockResolvedValueOnce({
+      ...video,
+      description,
+    });
+
+    const response = await request(app.getHttpServer())
+      .patch('/api/videos/video-1')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .send({
+        description,
+      })
+      .expect(200);
+
+    expect(response.body.description).toBe(description);
+    expect(prisma.video.update).toHaveBeenCalledWith({
+      where: { id: 'video-1' },
+      data: { description },
+      include: { channel: true },
+    });
+  });
+
   it('deletes a video for the channel owner', async () => {
     const response = await request(app.getHttpServer())
       .delete('/api/videos/video-1')

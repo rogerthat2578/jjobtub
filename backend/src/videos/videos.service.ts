@@ -265,6 +265,7 @@ export class VideosService {
     });
     await this.extractAndStoreThumbnail(id, savedFile.absolutePath);
     await this.extractAndStorePreview(id, savedFile.absolutePath);
+    await this.extractAndStoreQualityVariants(id, savedFile.absolutePath);
     await this.prisma.video.update({
       where: { id },
       data: { status: 'READY' },
@@ -416,14 +417,23 @@ export class VideosService {
     return { ok: true };
   }
 
-  async streamOriginal(id: string, rangeHeader: string | undefined): Promise<{
+  async streamOriginal(id: string, rangeHeader: string | undefined, quality?: string): Promise<{
     statusCode: number;
     headers: Record<string, string>;
     stream: ReadStream;
   }> {
-    const file = await this.prisma.videoFile.findFirst({
-      where: { videoId: id, kind: 'ORIGINAL' },
-    });
+    const qualityHeight = parseQualityHeight(quality);
+    const file =
+      qualityHeight !== null
+        ? (await this.prisma.videoFile.findFirst({
+            where: { videoId: id, kind: 'HLS_VARIANT', height: qualityHeight },
+          })) ??
+          (await this.prisma.videoFile.findFirst({
+            where: { videoId: id, kind: 'ORIGINAL' },
+          }))
+        : await this.prisma.videoFile.findFirst({
+            where: { videoId: id, kind: 'ORIGINAL' },
+          });
     if (!file) {
       throw new NotFoundException('Original video file not found');
     }
@@ -598,6 +608,44 @@ export class VideosService {
       // Keep upload successful when preview generation fails; existing videos can fall back to original stream.
     }
   }
+
+  private async extractAndStoreQualityVariants(videoId: string, inputPath: string) {
+    try {
+      const existingFiles = await this.prisma.videoFile.findMany({
+        where: { videoId, kind: 'HLS_VARIANT' },
+        select: { storagePath: true },
+      });
+      const variants = await this.thumbnails.createQualityVariants(videoId, inputPath);
+      await this.prisma.videoFile.deleteMany({
+        where: { videoId, kind: 'HLS_VARIANT' },
+      });
+      await Promise.all(
+        variants.map((variant) =>
+          this.prisma.videoFile.create({
+            data: {
+              videoId,
+              kind: 'HLS_VARIANT',
+              storagePath: variant.storagePath,
+              mimeType: variant.mimeType,
+              sizeBytes: variant.sizeBytes,
+              height: variant.height,
+            },
+          }),
+        ),
+      );
+      await Promise.all(existingFiles.map((existingFile) => this.storage.deleteFile(existingFile.storagePath)));
+    } catch {
+      // Keep upload successful when quality variant generation fails; playback falls back to the original file.
+    }
+  }
+}
+
+function parseQualityHeight(quality?: string) {
+  if (!quality || quality === 'auto') {
+    return null;
+  }
+  const height = Number(quality);
+  return [144, 240, 360, 480, 720, 1080, 1440].includes(height) ? height : null;
 }
 
 function thumbnailExtension(mimeType?: string, originalName?: string) {

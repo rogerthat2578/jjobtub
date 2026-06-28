@@ -3,6 +3,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { CommentList } from "../components/CommentList";
+import { LocalVideoPlayer } from "../components/LocalVideoPlayer";
 import { PlaylistSaveDialog } from "../components/PlaylistSaveDialog";
 import { useToast } from "../components/ToastProvider";
 import { VideoCard } from "../components/VideoCard";
@@ -362,21 +363,15 @@ export function WatchPage() {
             allowFullScreen
           />
         ) : (
-          <video
-            className="player"
-            controls
-            controlsList="nodownload"
-            disablePictureInPicture
-            autoPlay
-            playsInline
+          <LocalVideoPlayer
+            title={video.title}
             poster={video.thumbnailUrl}
-            src={video.videoUrl}
+            sourceUrl={video.videoUrl}
             onEnded={() => {
               if (nextPlaylistVideo && playlistId) {
                 navigate(`/watch/${nextPlaylistVideo.id}?playlist=${playlistId}&order=${playlistOrder}`);
               }
             }}
-            onContextMenu={(event) => event.preventDefault()}
           />
         )}
         {isEditing ? (

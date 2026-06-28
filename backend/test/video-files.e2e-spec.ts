@@ -180,6 +180,31 @@ describe('Video file upload and streaming API', () => {
     expect(response.body.toString()).toBe('bcd');
   });
 
+  it('streams a requested quality variant when it exists', async () => {
+    prisma.videoFile.findFirst.mockResolvedValueOnce({
+      id: 'file-720',
+      videoId: 'video-1',
+      kind: 'HLS_VARIANT',
+      storagePath: 'videos/video-1/quality-720p.mp4',
+      mimeType: 'video/mp4',
+      sizeBytes: BigInt(6),
+      height: 720,
+    });
+    await mkdir(join(storageRoot, 'videos', 'video-1'), { recursive: true });
+    await writeFile(join(storageRoot, 'videos', 'video-1', 'quality-720p.mp4'), Buffer.from('ghijkl'));
+
+    const response = await request(app.getHttpServer())
+      .get('/api/videos/video-1/stream?quality=720')
+      .set('Range', 'bytes=1-3')
+      .expect(206);
+
+    expect(response.headers['content-range']).toBe('bytes 1-3/6');
+    expect(response.body.toString()).toBe('hij');
+    expect(prisma.videoFile.findFirst).toHaveBeenCalledWith({
+      where: { videoId: 'video-1', kind: 'HLS_VARIANT', height: 720 },
+    });
+  });
+
   it('streams a byte range from the preview MP4 file', async () => {
     prisma.videoFile.findFirst.mockResolvedValueOnce({
       id: 'file-preview',
