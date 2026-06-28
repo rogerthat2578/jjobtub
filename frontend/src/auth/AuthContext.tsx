@@ -28,6 +28,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
+  useEffect(() => {
+    function handleUnauthorized() {
+      setUser(null);
+    }
+
+    window.addEventListener("jjobtub:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("jjobtub:unauthorized", handleUnauthorized);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,

@@ -1439,6 +1439,77 @@ img {
   font-weight: 800;
 }
 
+.playlist-detail-list {
+  display: grid;
+  gap: 10px;
+  max-width: 980px;
+}
+
+.playlist-detail-item {
+  display: grid;
+  grid-template-columns: 34px 180px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 104px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.playlist-detail-thumb {
+  position: relative;
+  overflow: hidden;
+  border-radius: 7px;
+  aspect-ratio: 16 / 9;
+  background: var(--surface-strong);
+}
+
+.playlist-detail-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.playlist-detail-thumb small {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.78);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.playlist-detail-copy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.playlist-detail-copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink);
+  line-height: 1.35;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.playlist-detail-copy small {
+  overflow: hidden;
+  color: var(--muted);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.danger-icon-button {
+  color: #dc2626;
+}
+
 .playlist-queue {
   display: grid;
   overflow: hidden;
@@ -1820,6 +1891,13 @@ img {
   background: var(--accent);
 }
 
+.upload-status-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .upload-preview {
   overflow: hidden;
   border-radius: 8px;
@@ -2050,6 +2128,16 @@ img {
 
   .playlist-queue-item {
     grid-template-columns: 22px 104px minmax(0, 1fr);
+  }
+
+  .playlist-detail-item {
+    grid-template-columns: 28px 120px minmax(0, 1fr);
+  }
+
+  .playlist-detail-item .icon-button {
+    grid-column: 3;
+    width: fit-content;
+    justify-self: end;
   }
 
   .channel-banner {

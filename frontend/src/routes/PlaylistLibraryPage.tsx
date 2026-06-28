@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { PlaylistCard } from "../components/PlaylistCard";
-import { PlaylistOrderManager } from "../components/PlaylistOrderManager";
 import { useToast } from "../components/ToastProvider";
-import { fetchPlaylists, reorderPlaylistItems } from "../services/apiClient";
+import { fetchPlaylists } from "../services/apiClient";
 import type { Playlist } from "../types/playlist";
 
 export function PlaylistLibraryPage() {
@@ -13,8 +12,6 @@ export function PlaylistLibraryPage() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [error, setError] = useState("");
   const [isFetching, setIsFetching] = useState(true);
-  const [managingPlaylistId, setManagingPlaylistId] = useState("");
-  const [isSavingOrder, setIsSavingOrder] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -61,41 +58,10 @@ export function PlaylistLibraryPage() {
               key={playlist.id}
               playlist={playlist}
               onEmpty={() => showToast("재생할 영상이 없습니다.", "info")}
-              onManage={() => setManagingPlaylistId(playlist.id)}
+              manageTo={`/library/${playlist.id}`}
             />
           ))}
         </section>
-      )}
-      {managingPlaylistId && (
-        <PlaylistOrderManager
-          playlist={playlists.find((playlist) => playlist.id === managingPlaylistId) ?? playlists[0]}
-          isSaving={isSavingOrder}
-          onCancel={() => setManagingPlaylistId("")}
-          onSave={async (videoIds) => {
-            setIsSavingOrder(true);
-            try {
-              await reorderPlaylistItems(managingPlaylistId, videoIds);
-              setPlaylists((currentPlaylists) =>
-                currentPlaylists.map((playlist) =>
-                  playlist.id === managingPlaylistId
-                    ? {
-                        ...playlist,
-                        videos: videoIds
-                          .map((videoId) => playlist.videos.find((video) => video.id === videoId))
-                          .filter(Boolean) as Playlist["videos"],
-                      }
-                    : playlist,
-                ),
-              );
-              setManagingPlaylistId("");
-              showToast("재생목록 순서가 저장되었습니다.", "success");
-            } catch {
-              showToast("재생목록 순서를 저장하지 못했습니다.", "error");
-            } finally {
-              setIsSavingOrder(false);
-            }
-          }}
-        />
       )}
     </div>
   );

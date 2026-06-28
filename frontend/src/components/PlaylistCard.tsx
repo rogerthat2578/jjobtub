@@ -4,10 +4,10 @@ import type { Playlist } from "../types/playlist";
 type PlaylistCardProps = {
   playlist: Playlist;
   onEmpty: () => void;
-  onManage?: () => void;
+  manageTo?: string;
 };
 
-export function PlaylistCard({ playlist, onEmpty, onManage }: PlaylistCardProps) {
+export function PlaylistCard({ playlist, onEmpty, manageTo }: PlaylistCardProps) {
   const firstVideo = playlist.videos[0];
   const playbackUrl = firstVideo ? `/watch/${firstVideo.id}?playlist=${playlist.id}` : "";
 
@@ -35,10 +35,10 @@ export function PlaylistCard({ playlist, onEmpty, onManage }: PlaylistCardProps)
         <p>
           {playlist.kind === "LIKED" ? "자동 재생목록" : "내 재생목록"} · {playlist.videoCount.toLocaleString()}개 영상
         </p>
-        {onManage && playlist.videos.length > 1 && (
-          <button className="text-button" type="button" onClick={onManage}>
-            순서 관리
-          </button>
+        {manageTo && (
+          <Link className="text-button" to={manageTo}>
+            관리
+          </Link>
         )}
       </div>
     </article>

@@ -83,7 +83,16 @@ export function WatchPage() {
       fetchVideo(videoId),
       fetchComments(videoId),
       fetchVideos(),
-      playlistId ? fetchPlaylistVideos(playlistId, playlistOrder === "random" ? "manual" : playlistOrder).catch(() => null) : Promise.resolve(null),
+      playlistId
+        ? fetchPlaylistVideos(playlistId, playlistOrder === "random" ? "manual" : playlistOrder).catch((error) => {
+            if (error instanceof Error && error.message.includes("Login required")) {
+              showToast("로그인이 만료되었습니다. 다시 로그인해 주세요.", "error");
+            } else {
+              showToast("재생목록을 불러오지 못했습니다.", "error");
+            }
+            return null;
+          })
+        : Promise.resolve(null),
     ])
       .then(([videoResult, commentResult, recommendedResult, playlistResult]) => {
         setVideo(videoResult.video);
@@ -101,7 +110,10 @@ export function WatchPage() {
           playlistResult && playlistResult.videos.some((item) => item.id === videoId)
             ? {
                 playlist: playlistResult.playlist,
-                videos: playlistOrder === "random" ? shuffleVideos(playlistResult.videos) : playlistResult.videos,
+                videos:
+                  playlistOrder === "random" && playlistId
+                    ? stableRandomPlaylistVideos(playlistId, playlistResult.videos)
+                    : playlistResult.videos,
                 channelsById: playlistResult.channelsById,
               }
             : null,
@@ -110,7 +122,7 @@ export function WatchPage() {
         void recordVideoView(videoId);
       })
       .catch(() => setNotFound(true));
-  }, [playlistId, playlistOrder, videoId]);
+  }, [playlistId, playlistOrder, showToast, videoId]);
 
   async function recordVideoView(targetVideoId: string) {
     if (viewedVideoIdRef.current === targetVideoId) {
@@ -336,6 +348,7 @@ export function WatchPage() {
   const isOwnChannel = Boolean(user?.channelId && user.channelId === channel.id);
   const youtubeAutoplayUrl =
     video.embedUrl && video.embedUrl.includes("?") ? `${video.embedUrl}&autoplay=1` : `${video.embedUrl}?autoplay=1`;
+  const nextPlaylistVideo = playlistQueue ? nextVideoInQueue(playlistQueue.videos, video.id) : null;
 
   return (
     <div className="watch-layout">
@@ -358,6 +371,11 @@ export function WatchPage() {
             playsInline
             poster={video.thumbnailUrl}
             src={video.videoUrl}
+            onEnded={() => {
+              if (nextPlaylistVideo && playlistId) {
+                navigate(`/watch/${nextPlaylistVideo.id}?playlist=${playlistId}&order=${playlistOrder}`);
+              }
+            }}
             onContextMenu={(event) => event.preventDefault()}
           />
         )}
@@ -642,6 +660,26 @@ function normalizePlaylistOrder(value: string | null): PlaylistOrder {
   return "manual";
 }
 
+function stableRandomPlaylistVideos(playlistId: string, videos: Video[]) {
+  const storageKey = `jjobtub:playlist-random:${playlistId}`;
+  const videoIds = videos.map((video) => video.id);
+  try {
+    const storedVideoIds = JSON.parse(sessionStorage.getItem(storageKey) || "[]") as string[];
+    const hasSameVideos =
+      storedVideoIds.length === videoIds.length && storedVideoIds.every((videoId) => videoIds.includes(videoId));
+    if (hasSameVideos) {
+      return storedVideoIds
+        .map((videoId) => videos.find((video) => video.id === videoId))
+        .filter(Boolean) as Video[];
+    }
+    const shuffledVideos = shuffleVideos(videos);
+    sessionStorage.setItem(storageKey, JSON.stringify(shuffledVideos.map((video) => video.id)));
+    return shuffledVideos;
+  } catch {
+    return shuffleVideos(videos);
+  }
+}
+
 function shuffleVideos(videos: Video[]) {
   const nextVideos = [...videos];
   for (let index = nextVideos.length - 1; index > 0; index -= 1) {
@@ -649,4 +687,12 @@ function shuffleVideos(videos: Video[]) {
     [nextVideos[index], nextVideos[swapIndex]] = [nextVideos[swapIndex], nextVideos[index]];
   }
   return nextVideos;
+}
+
+function nextVideoInQueue(videos: Video[], currentVideoId: string) {
+  const currentIndex = videos.findIndex((video) => video.id === currentVideoId);
+  if (currentIndex < 0 || currentIndex >= videos.length - 1) {
+    return null;
+  }
+  return videos[currentIndex + 1];
 }

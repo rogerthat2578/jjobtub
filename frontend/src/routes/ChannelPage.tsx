@@ -3,14 +3,12 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { PlaylistCard } from "../components/PlaylistCard";
-import { PlaylistOrderManager } from "../components/PlaylistOrderManager";
 import { useToast } from "../components/ToastProvider";
 import { VideoGrid } from "../components/VideoGrid";
 import {
   fetchChannel,
   fetchChannelVideos,
   fetchPlaylists,
-  reorderPlaylistItems,
   toggleChannelSubscription,
   updateChannel,
   type VideoListResult,
@@ -47,8 +45,6 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
-  const [managingPlaylistId, setManagingPlaylistId] = useState("");
-  const [isSavingOrder, setIsSavingOrder] = useState(false);
 
   useEffect(() => {
     const targetChannelId = isMine ? user?.channelId : channelId;
@@ -276,43 +272,12 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
                   key={playlist.id}
                   playlist={playlist}
                   onEmpty={() => showToast("재생할 영상이 없습니다.", "info")}
-                  onManage={() => setManagingPlaylistId(playlist.id)}
+                  manageTo={`/library/${playlist.id}`}
                 />
               ))}
             </section>
           ) : (
             <p className="empty-state">아직 재생목록이 없습니다. 시청 페이지에서 저장 버튼으로 새 재생목록을 만들 수 있습니다.</p>
-          )}
-          {managingPlaylistId && (
-            <PlaylistOrderManager
-              playlist={playlists.find((playlist) => playlist.id === managingPlaylistId) ?? playlists[0]}
-              isSaving={isSavingOrder}
-              onCancel={() => setManagingPlaylistId("")}
-              onSave={async (videoIds) => {
-                setIsSavingOrder(true);
-                try {
-                  await reorderPlaylistItems(managingPlaylistId, videoIds);
-                  setPlaylists((currentPlaylists) =>
-                    currentPlaylists.map((playlist) =>
-                      playlist.id === managingPlaylistId
-                        ? {
-                            ...playlist,
-                            videos: videoIds
-                              .map((videoId) => playlist.videos.find((video) => video.id === videoId))
-                              .filter(Boolean) as Playlist["videos"],
-                          }
-                        : playlist,
-                    ),
-                  );
-                  setManagingPlaylistId("");
-                  showToast("재생목록 순서가 저장되었습니다.", "success");
-                } catch {
-                  showToast("재생목록 순서를 저장하지 못했습니다.", "error");
-                } finally {
-                  setIsSavingOrder(false);
-                }
-              }}
-            />
           )}
         </section>
       )}

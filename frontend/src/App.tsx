@@ -1,12 +1,14 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import { AppLayout } from "./components/AppLayout";
+import { AuthSessionNotice } from "./components/AuthSessionNotice";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { ToastProvider } from "./components/ToastProvider";
 import { AuthPage } from "./routes/AuthPage";
 import { ChannelPage } from "./routes/ChannelPage";
 import { HomePage } from "./routes/HomePage";
 import { PersonalVideoListPage } from "./routes/PersonalVideoListPage";
+import { PlaylistDetailPage } from "./routes/PlaylistDetailPage";
 import { PlaylistLibraryPage } from "./routes/PlaylistLibraryPage";
 import { SearchPage } from "./routes/SearchPage";
 import { UploadPage } from "./routes/UploadPage";
@@ -22,6 +24,7 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
+        <AuthSessionNotice />
         <ScrollToTop />
         <AppLayout>
           <Routes>
@@ -44,6 +47,7 @@ export default function App() {
               path="/library"
               element={<PlaylistLibraryPage />}
             />
+            <Route path="/library/:playlistId" element={<PlaylistDetailPage />} />
             <Route
               path="/history"
               element={

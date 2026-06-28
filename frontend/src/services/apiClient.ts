@@ -300,6 +300,9 @@ function uploadFileWithProgress<T>(path: string, file: File, onProgress?: (progr
         resolve(JSON.parse(xhr.responseText || "{}") as T);
         return;
       }
+      if (xhr.status === 401) {
+        window.dispatchEvent(new CustomEvent("jjobtub:unauthorized"));
+      }
       reject(new ApiRequestError(readXhrErrorMessage(xhr), xhr.status));
     };
     xhr.onerror = () => reject(new ApiRequestError("Network request failed", 0));
@@ -361,7 +364,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
   if (!response.ok) {
-    throw new ApiRequestError(await readErrorMessage(response), response.status);
+    const message = await readErrorMessage(response);
+    if (response.status === 401 && path !== "/auth/me" && path !== "/auth/login") {
+      window.dispatchEvent(new CustomEvent("jjobtub:unauthorized"));
+    }
+    throw new ApiRequestError(message, response.status);
   }
   return response.json() as Promise<T>;
 }

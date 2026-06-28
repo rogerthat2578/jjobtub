@@ -25,6 +25,7 @@ export function UploadPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [thumbnailProgress, setThumbnailProgress] = useState(0);
   const [failedVideoId, setFailedVideoId] = useState("");
+  const [uploadStatus, setUploadStatus] = useState("");
 
   useEffect(() => {
     if (!isSubmitting) {
@@ -126,6 +127,7 @@ export function UploadPage() {
     setUploadProgress(uploadMode === "youtube" ? 100 : 0);
     setThumbnailProgress(0);
     setFailedVideoId("");
+    setUploadStatus(uploadMode === "youtube" ? "YouTube 링크를 검증하는 중입니다." : "영상 정보를 생성하는 중입니다.");
 
     let createdVideoId = "";
 
@@ -141,17 +143,23 @@ export function UploadPage() {
       });
       createdVideoId = created.id;
       if (uploadMode === "file" && file) {
+        setUploadStatus("MP4 파일을 업로드하는 중입니다. 창을 닫지 마세요.");
         await uploadVideoFileWithProgress(created.id, file, setUploadProgress);
         if (thumbnailFile) {
+          setUploadStatus("썸네일 이미지를 업로드하는 중입니다.");
           await uploadVideoThumbnail(created.id, thumbnailFile, setThumbnailProgress);
+        } else {
+          setUploadStatus("썸네일 자동 추출을 시도했습니다. 실패하면 기본 썸네일이 표시됩니다.");
         }
       }
+      setUploadStatus(uploadMode === "youtube" ? "YouTube 영상 등록이 완료되었습니다." : "영상 업로드가 완료되었습니다.");
       showToast(uploadMode === "youtube" ? "YouTube 영상이 등록되었습니다." : "영상 업로드가 완료되었습니다.", "success");
       navigate(`/watch/${created.id}`);
     } catch (submitError) {
       if (uploadMode === "file" && createdVideoId) {
         setFailedVideoId(createdVideoId);
       }
+      setUploadStatus("업로드가 중단되었습니다. 같은 파일로 다시 시도할 수 있습니다.");
       setError(toUploadErrorMessage(submitError, uploadMode));
       showToast("업로드를 완료하지 못했습니다.", "error");
     } finally {
@@ -168,16 +176,20 @@ export function UploadPage() {
     setError("");
     setUploadProgress(0);
     setThumbnailProgress(0);
+    setUploadStatus("실패한 영상 업로드를 다시 시도하는 중입니다.");
 
     try {
       await uploadVideoFileWithProgress(failedVideoId, file, setUploadProgress);
       if (thumbnailFile) {
+        setUploadStatus("썸네일 이미지를 다시 업로드하는 중입니다.");
         await uploadVideoThumbnail(failedVideoId, thumbnailFile, setThumbnailProgress);
       }
+      setUploadStatus("영상 업로드가 완료되었습니다.");
       showToast("영상 업로드가 완료되었습니다.", "success");
       navigate(`/watch/${failedVideoId}`);
     } catch (retryError) {
       setError(toUploadErrorMessage(retryError, "file"));
+      setUploadStatus("재시도에 실패했습니다. 네트워크 상태와 파일 크기를 확인해 주세요.");
       showToast("재시도에 실패했습니다.", "error");
     } finally {
       setIsSubmitting(false);
@@ -285,6 +297,7 @@ export function UploadPage() {
         )}
         {isSubmitting && uploadMode === "file" && (
           <div className="upload-progress">
+            {uploadStatus && <strong>{uploadStatus}</strong>}
             <span>영상 업로드 {uploadProgress}%</span>
             <progress max={100} value={uploadProgress} />
             {thumbnailFile && (
@@ -295,6 +308,7 @@ export function UploadPage() {
             )}
           </div>
         )}
+        {!isSubmitting && uploadStatus && <p className="upload-status-note">{uploadStatus}</p>}
         {error && <p className="form-error">{error}</p>}
         {failedVideoId && (
           <button className="pill-button" type="button" onClick={handleRetryUpload} disabled={isSubmitting}>
