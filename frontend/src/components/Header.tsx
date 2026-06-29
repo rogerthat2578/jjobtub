@@ -1,4 +1,21 @@
-import { Bell, LogIn, LogOut, Menu, Search, Sparkles, Trash2, Tv, Upload, UserCircle, UserPlus, Video } from "lucide-react";
+import {
+  Bell,
+  Heart,
+  LogIn,
+  LogOut,
+  Menu,
+  MessageCircle,
+  Reply,
+  Search,
+  Sparkles,
+  Trash2,
+  Tv,
+  Upload,
+  UserCircle,
+  UserPlus,
+  UserRoundPlus,
+  Video,
+} from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -200,9 +217,14 @@ export function Header({ onMenuClick }: HeaderProps) {
                   <div className="notification-list">
                     {notifications.map((notification) => (
                       <div
-                        className={`notification-item ${notification.readAt ? "" : "notification-item-unread"}`}
+                        className={`notification-item notification-type-${notification.type.toLowerCase().replace("_", "-")} ${
+                          notification.readAt ? "" : "notification-item-unread"
+                        }`}
                         key={notification.id}
                       >
+                        <span className="notification-type-icon" aria-hidden="true">
+                          {renderNotificationIcon(notification.type)}
+                        </span>
                         <button className="notification-item-copy" type="button" onClick={() => void handleNotificationClick(notification)}>
                           <span>{notification.message}</span>
                           <small>{notification.createdAt}</small>
@@ -292,4 +314,17 @@ export function Header({ onMenuClick }: HeaderProps) {
       </div>
     </header>
   );
+}
+
+function renderNotificationIcon(type: AppNotification["type"]) {
+  if (type === "REPLY") {
+    return <Reply size={15} />;
+  }
+  if (type === "COMMENT_LIKE" || type === "VIDEO_LIKE") {
+    return <Heart size={15} />;
+  }
+  if (type === "SUBSCRIPTION") {
+    return <UserRoundPlus size={15} />;
+  }
+  return <MessageCircle size={15} />;
 }

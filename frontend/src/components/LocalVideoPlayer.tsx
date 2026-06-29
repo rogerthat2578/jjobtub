@@ -43,6 +43,11 @@ const MINI_PLAYER_MIN_WIDTH = 260;
 const MINI_PLAYER_MAX_WIDTH = 680;
 const MINI_PLAYER_MARGIN = 16;
 const MINI_PLAYER_STORAGE_KEY = "jjobtub:mini-player";
+const MINI_PLAYER_PRESETS = [
+  { label: "S", width: 320 },
+  { label: "M", width: 420 },
+  { label: "L", width: 560 },
+];
 
 const QUALITY_OPTIONS = [
   { value: "2160", height: 2160, label: "2160p", badge: "4K" },
@@ -286,6 +291,12 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
     setSettingsPanel(null);
   }
 
+  function applyMiniPreset(width: number) {
+    const nextSize = clampMiniSize({ width });
+    setMiniSize(nextSize);
+    setMiniPosition((position) => clampMiniPosition(position ?? defaultMiniPosition(nextSize), nextSize));
+  }
+
   function handleMiniDragStart(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.button !== 0) {
       return;
@@ -397,6 +408,23 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
       {isMiniPlayer && (
         <div className="mini-player-bar" data-player-interactive="true" onPointerDown={handleMiniDragStart}>
           <span>{title}</span>
+          <div className="mini-player-presets" aria-label="소형 플레이어 크기">
+            {MINI_PLAYER_PRESETS.map((preset) => (
+              <button
+                className={Math.abs(miniSize.width - clampMiniSize({ width: preset.width }).width) < 12 ? "mini-player-preset-active" : ""}
+                key={preset.label}
+                type="button"
+                title={`${preset.label} 크기`}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  applyMiniPreset(preset.width);
+                }}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
           <button className="player-icon-button" type="button" onClick={closeMiniPlayer} aria-label="소형 플레이어 닫기">
             <X size={17} />
           </button>

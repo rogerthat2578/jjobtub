@@ -111,11 +111,11 @@ export function SearchPage() {
                   <Link className="channel-result-card" key={channel.id} to={`/channel/${channel.id}`}>
                     <img src={channel.avatarUrl} alt="" />
                     <span>
-                      <strong>{channel.name}</strong>
+                      <strong>{highlightText(channel.name, query)}</strong>
                       <small>
                         구독자 {channel.subscribers}명 · 영상 {(channel.videoCount ?? 0).toLocaleString()}개
                       </small>
-                      <em>{channel.description || "채널 설명이 없습니다."}</em>
+                      <em>{highlightText(channel.description || "채널 설명이 없습니다.", query)}</em>
                     </span>
                   </Link>
                 ))}
@@ -163,4 +163,25 @@ function normalizeSearchType(value: string | null): SearchType {
 function normalizePage(value: string | null) {
   const page = Number(value);
   return Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+}
+
+function highlightText(text: string, query: string) {
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) {
+    return text;
+  }
+
+  const escapedQuery = normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(${escapedQuery})`, "ig");
+  const parts = text.split(pattern);
+
+  return parts.map((part, index) =>
+    part.toLowerCase() === normalizedQuery.toLowerCase() ? (
+      <mark className="search-highlight" key={`${part}-${index}`}>
+        {part}
+      </mark>
+    ) : (
+      part
+    ),
+  );
 }

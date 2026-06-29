@@ -73,6 +73,20 @@ export function VideoCard({ video, channel, orientation = "grid", actionSlot }: 
           <p>
             {video.views} · {video.uploadedAt}
           </p>
+          {video.tags.length > 0 && (
+            <div className="video-card-tags" aria-label={`${video.title} 태그`}>
+              {video.tags.slice(0, orientation === "list" ? 6 : 3).map((tag) => (
+                <Link
+                  className="video-card-tag"
+                  key={tag}
+                  to={`/search?q=${encodeURIComponent(tag)}&type=videos`}
+                  onClick={stopPreview}
+                >
+                  #{tag}
+                </Link>
+              ))}
+            </div>
+          )}
           {actionSlot && <div className="video-card-actions">{actionSlot}</div>}
         </div>
       </div>

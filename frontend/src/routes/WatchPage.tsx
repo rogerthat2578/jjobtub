@@ -49,10 +49,11 @@ type CommentSort = "oldest" | "latest" | "popular";
 
 export function WatchPage() {
   const { videoId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const playlistId = searchParams.get("playlist");
   const targetCommentId = searchParams.get("comment");
   const playlistOrder = normalizePlaylistOrder(searchParams.get("order"));
+  const commentSort = normalizeCommentSort(searchParams.get("comments"));
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -64,7 +65,6 @@ export function WatchPage() {
   const [notFound, setNotFound] = useState(false);
   const [commentBody, setCommentBody] = useState("");
   const [commentError, setCommentError] = useState("");
-  const [commentSort, setCommentSort] = useState<CommentSort>("oldest");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -337,6 +337,16 @@ export function WatchPage() {
     setIsSaveDialogOpen(true);
   }
 
+  function updateCommentSort(nextSort: CommentSort) {
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextSort === "oldest") {
+      nextParams.delete("comments");
+    } else {
+      nextParams.set("comments", nextSort);
+    }
+    setSearchParams(nextParams, { replace: true });
+  }
+
   async function handleCommentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!videoId || isSubmittingComment) {
@@ -603,7 +613,7 @@ export function WatchPage() {
                   key={sort}
                   type="button"
                   className={commentSort === sort ? "active" : ""}
-                  onClick={() => setCommentSort(sort)}
+                  onClick={() => updateCommentSort(sort)}
                 >
                   {commentSortLabel(sort)}
                 </button>
@@ -758,6 +768,13 @@ function normalizePlaylistOrder(value: string | null): PlaylistOrder {
     return value;
   }
   return "manual";
+}
+
+function normalizeCommentSort(value: string | null): CommentSort {
+  if (value === "latest" || value === "popular") {
+    return value;
+  }
+  return "oldest";
 }
 
 function stableRandomPlaylistVideos(playlistId: string, videos: Video[]) {
