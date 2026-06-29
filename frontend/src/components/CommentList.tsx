@@ -140,7 +140,7 @@ function CommentItem({
   }
 
   return (
-    <article className={`comment ${depth > 0 ? "comment-reply" : ""}`}>
+    <article id={`comment-${comment.id}`} className={`comment ${depth > 0 ? "comment-reply" : ""}`}>
       <img src={comment.avatarUrl} alt="" />
       <div className="comment-content">
         {isEditing ? (

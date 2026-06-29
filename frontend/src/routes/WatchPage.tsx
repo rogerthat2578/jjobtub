@@ -45,10 +45,13 @@ const PLAYLIST_ORDER_OPTIONS: Array<{ value: PlaylistOrder; label: string }> = [
   { value: "random", label: "랜덤 재생" },
 ];
 
+type CommentSort = "oldest" | "latest" | "popular";
+
 export function WatchPage() {
   const { videoId } = useParams();
   const [searchParams] = useSearchParams();
   const playlistId = searchParams.get("playlist");
+  const targetCommentId = searchParams.get("comment");
   const playlistOrder = normalizePlaylistOrder(searchParams.get("order"));
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -61,6 +64,7 @@ export function WatchPage() {
   const [notFound, setNotFound] = useState(false);
   const [commentBody, setCommentBody] = useState("");
   const [commentError, setCommentError] = useState("");
+  const [commentSort, setCommentSort] = useState<CommentSort>("oldest");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -87,7 +91,7 @@ export function WatchPage() {
 
     Promise.all([
       fetchVideo(videoId),
-      fetchComments(videoId),
+      fetchComments(videoId, commentSort),
       fetchVideos(),
       playlistId
         ? fetchPlaylistVideos(playlistId, playlistOrder === "random" ? "manual" : playlistOrder).catch((error) => {
@@ -128,7 +132,19 @@ export function WatchPage() {
         void recordVideoView(videoId);
       })
       .catch(() => setNotFound(true));
-  }, [playlistId, playlistOrder, showToast, videoId]);
+  }, [commentSort, playlistId, playlistOrder, showToast, videoId]);
+
+  useEffect(() => {
+    if (!targetCommentId || comments.length === 0) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      document.getElementById(`comment-${targetCommentId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [comments, targetCommentId]);
 
   async function recordVideoView(targetVideoId: string) {
     if (viewedVideoIdRef.current === targetVideoId) {
@@ -344,6 +360,7 @@ export function WatchPage() {
       const createdComment = await createComment(videoId, trimmedBody);
       setComments((currentComments) => [...currentComments, createdComment]);
       setCommentBody("");
+      scrollToComment(createdComment.id);
     } catch {
       setCommentError("댓글을 등록하지 못했습니다. 잠시 후 다시 시도하세요.");
     } finally {
@@ -362,6 +379,7 @@ export function WatchPage() {
         comment.id === parentId ? { ...comment, replies: [...comment.replies, createdReply] } : comment,
       ),
     );
+    scrollToComment(createdReply.id);
   }
 
   async function handleCommentUpdate(commentId: string, body: string) {
@@ -577,7 +595,21 @@ export function WatchPage() {
         </section>
 
         <section className="comments-section">
-          <h2>댓글 {comments.length}개</h2>
+          <div className="comments-header">
+            <h2>댓글 {comments.length}개</h2>
+            <div className="comment-sort-tabs" aria-label="댓글 정렬">
+              {(["oldest", "latest", "popular"] as CommentSort[]).map((sort) => (
+                <button
+                  key={sort}
+                  type="button"
+                  className={commentSort === sort ? "active" : ""}
+                  onClick={() => setCommentSort(sort)}
+                >
+                  {commentSortLabel(sort)}
+                </button>
+              ))}
+            </div>
+          </div>
           <form className="comment-form" onSubmit={handleCommentSubmit}>
             <label htmlFor="comment-body">댓글 작성</label>
             <textarea
@@ -763,4 +795,16 @@ function nextVideoInQueue(videos: Video[], currentVideoId: string) {
     return null;
   }
   return videos[currentIndex + 1];
+}
+
+function scrollToComment(commentId: string) {
+  window.setTimeout(() => {
+    document.getElementById(`comment-${commentId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 80);
+}
+
+function commentSortLabel(sort: CommentSort) {
+  if (sort === "latest") return "최신순";
+  if (sort === "popular") return "인기순";
+  return "오래된순";
 }

@@ -63,6 +63,26 @@ export class NotificationsService {
     return { ok: true };
   }
 
+  async deleteNotification(id: string, request: Pick<Request, 'headers'>) {
+    const user = await this.requireCurrentUser(request);
+    const notification = await this.prisma.notification.findUnique({ where: { id } });
+    if (!notification) {
+      throw new NotFoundException('Notification not found');
+    }
+    if (notification.userId !== user.id) {
+      throw new ForbiddenException('Only the notification owner can delete this notification');
+    }
+
+    await this.prisma.notification.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  async deleteAll(request: Pick<Request, 'headers'>) {
+    const user = await this.requireCurrentUser(request);
+    await this.prisma.notification.deleteMany({ where: { userId: user.id } });
+    return { ok: true };
+  }
+
   async createNotification(input: {
     userId: string;
     actorId?: string;

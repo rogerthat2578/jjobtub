@@ -39,7 +39,10 @@ type SettingsPanel = "root" | "quality" | "speed" | "captions";
 
 const MINI_PLAYER_WIDTH = 420;
 const MINI_PLAYER_HEIGHT = 272;
+const MINI_PLAYER_MIN_WIDTH = 260;
+const MINI_PLAYER_MAX_WIDTH = 680;
 const MINI_PLAYER_MARGIN = 16;
+const MINI_PLAYER_STORAGE_KEY = "jjobtub:mini-player";
 
 const QUALITY_OPTIONS = [
   { value: "2160", height: 2160, label: "2160p", badge: "4K" },
@@ -69,6 +72,7 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   const [miniPosition, setMiniPosition] = useState<{ x: number; y: number } | null>(null);
+  const [miniSize, setMiniSize] = useState<{ width: number; height: number }>(() => defaultMiniSize());
 
   const qualityOptions = useMemo(
     () => QUALITY_OPTIONS.filter((option) => availableQualities.includes(option.height)),
@@ -97,15 +101,23 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
     if (!isMiniPlayer) {
       return;
     }
-    setMiniPosition((position) => clampMiniPosition(position ?? defaultMiniPosition()));
+    setMiniPosition((position) => clampMiniPosition(position ?? readStoredMiniState().position ?? defaultMiniPosition(miniSize), miniSize));
 
     function handleResize() {
-      setMiniPosition((position) => clampMiniPosition(position ?? defaultMiniPosition()));
+      setMiniSize((size) => clampMiniSize(size));
+      setMiniPosition((position) => clampMiniPosition(position ?? defaultMiniPosition(miniSize), miniSize));
     }
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [isMiniPlayer]);
+  }, [isMiniPlayer, miniSize]);
+
+  useEffect(() => {
+    if (!isMiniPlayer || !miniPosition) {
+      return;
+    }
+    localStorage.setItem(MINI_PLAYER_STORAGE_KEY, JSON.stringify({ position: miniPosition, size: miniSize }));
+  }, [isMiniPlayer, miniPosition, miniSize]);
 
   useEffect(() => {
     if (!settingsPanel && !contextMenu) {
@@ -261,7 +273,10 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
   function toggleMiniPlayer() {
     setSettingsPanel(null);
     setContextMenu(null);
-    setMiniPosition((position) => position ?? defaultMiniPosition());
+    const storedState = readStoredMiniState();
+    const nextSize = storedState.size ?? miniSize;
+    setMiniSize(clampMiniSize(nextSize));
+    setMiniPosition((position) => clampMiniPosition(position ?? storedState.position ?? defaultMiniPosition(nextSize), nextSize));
     setIsMiniPlayer((current) => !current);
   }
 
@@ -277,7 +292,7 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
     }
     event.preventDefault();
     event.stopPropagation();
-    const startPosition = miniPosition ?? defaultMiniPosition();
+    const startPosition = miniPosition ?? defaultMiniPosition(miniSize);
     const startX = event.clientX;
     const startY = event.clientY;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -287,8 +302,33 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
         clampMiniPosition({
           x: startPosition.x + moveEvent.clientX - startX,
           y: startPosition.y + moveEvent.clientY - startY,
-        }),
+        }, miniSize),
       );
+    }
+
+    function handleUp() {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    }
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+  }
+
+  function handleMiniResizeStart(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const startSize = miniSize;
+    const startX = event.clientX;
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    function handleMove(moveEvent: PointerEvent) {
+      const nextSize = clampMiniSize({ width: startSize.width + moveEvent.clientX - startX });
+      setMiniSize(nextSize);
+      setMiniPosition((position) => clampMiniPosition(position ?? defaultMiniPosition(nextSize), nextSize));
     }
 
     function handleUp() {
@@ -342,7 +382,11 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
     <div
       className={`custom-player ${isMiniPlayer ? "custom-player-mini" : ""}`}
       ref={containerRef}
-      style={isMiniPlayer && miniPosition ? { left: miniPosition.x, top: miniPosition.y } : undefined}
+      style={
+        isMiniPlayer && miniPosition
+          ? { left: miniPosition.x, top: miniPosition.y, width: miniSize.width, height: miniSize.height }
+          : undefined
+      }
       tabIndex={0}
       onContextMenu={handleContextMenu}
       onDoubleClick={() => containerRef.current?.requestFullscreen()}
@@ -358,6 +402,7 @@ export function LocalVideoPlayer({ title, poster, sourceUrl, availableQualities 
           </button>
         </div>
       )}
+      {isMiniPlayer && <div className="mini-player-resize" data-player-interactive="true" onPointerDown={handleMiniResizeStart} aria-hidden="true" />}
       <video
         ref={videoRef}
         className="player custom-player-video"
@@ -611,20 +656,54 @@ function buildQualityUrl(sourceUrl: string, quality: string) {
   return url.toString();
 }
 
-function defaultMiniPosition() {
-  return clampMiniPosition({
-    x: window.innerWidth - MINI_PLAYER_WIDTH - MINI_PLAYER_MARGIN,
-    y: window.innerHeight - MINI_PLAYER_HEIGHT - MINI_PLAYER_MARGIN,
-  });
+function defaultMiniSize() {
+  return clampMiniSize({ width: MINI_PLAYER_WIDTH });
 }
 
-function clampMiniPosition(position: { x: number; y: number }) {
-  const maxX = Math.max(MINI_PLAYER_MARGIN, window.innerWidth - MINI_PLAYER_WIDTH - MINI_PLAYER_MARGIN);
-  const maxY = Math.max(MINI_PLAYER_MARGIN, window.innerHeight - MINI_PLAYER_HEIGHT - MINI_PLAYER_MARGIN);
+function defaultMiniPosition(size = defaultMiniSize()) {
+  return clampMiniPosition(
+    {
+      x: window.innerWidth - size.width - MINI_PLAYER_MARGIN,
+      y: window.innerHeight - size.height - MINI_PLAYER_MARGIN,
+    },
+    size,
+  );
+}
+
+function clampMiniSize(size: { width: number; height?: number }) {
+  const availableWidth = Math.max(1, window.innerWidth - MINI_PLAYER_MARGIN * 2);
+  const minWidth = Math.min(MINI_PLAYER_MIN_WIDTH, availableWidth);
+  const maxWidth = Math.min(MINI_PLAYER_MAX_WIDTH, availableWidth);
+  const width = Math.min(Math.max(size.width, minWidth), maxWidth);
+  return {
+    width,
+    height: Math.round((width * MINI_PLAYER_HEIGHT) / MINI_PLAYER_WIDTH),
+  };
+}
+
+function clampMiniPosition(position: { x: number; y: number }, size = defaultMiniSize()) {
+  const maxX = Math.max(MINI_PLAYER_MARGIN, window.innerWidth - size.width - MINI_PLAYER_MARGIN);
+  const maxY = Math.max(MINI_PLAYER_MARGIN, window.innerHeight - size.height - MINI_PLAYER_MARGIN);
   return {
     x: Math.min(Math.max(position.x, MINI_PLAYER_MARGIN), maxX),
     y: Math.min(Math.max(position.y, MINI_PLAYER_MARGIN), maxY),
   };
+}
+
+function readStoredMiniState() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(MINI_PLAYER_STORAGE_KEY) || "{}") as {
+      position?: { x: number; y: number };
+      size?: { width: number; height?: number };
+    };
+    const size = stored.size ? clampMiniSize(stored.size) : undefined;
+    return {
+      size,
+      position: stored.position && size ? clampMiniPosition(stored.position, size) : undefined,
+    };
+  } catch {
+    return {};
+  }
 }
 
 function qualityLabel(value: string, qualityOptions: typeof QUALITY_OPTIONS) {

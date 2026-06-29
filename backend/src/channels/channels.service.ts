@@ -6,7 +6,10 @@ import { toPlaylistResponse } from '../playlists/playlists.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { toVideoListItem } from '../videos/video-response';
+import { UpdateChannelHomeDto } from './dto/update-channel-home.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
+
+const DEFAULT_HOME_SECTION_ORDER = ['featured', 'videos', 'playlists'];
 
 @Injectable()
 export class ChannelsService {
@@ -30,6 +33,9 @@ export class ChannelsService {
       description: channel.description,
       avatarUrl: channel.avatarUrl,
       bannerUrl: channel.bannerUrl,
+      featuredVideoId: channel.featuredVideoId,
+      featuredPlaylistId: channel.featuredPlaylistId,
+      homeSectionOrder: channel.homeSectionOrder,
       subscriberCount: channel.subscriberCount,
       videoCount,
       createdAt: channel.createdAt.toISOString(),
@@ -98,6 +104,46 @@ export class ChannelsService {
       description: updatedChannel.description,
       avatarUrl: updatedChannel.avatarUrl,
       bannerUrl: updatedChannel.bannerUrl,
+      featuredVideoId: updatedChannel.featuredVideoId,
+      featuredPlaylistId: updatedChannel.featuredPlaylistId,
+      homeSectionOrder: updatedChannel.homeSectionOrder,
+      subscriberCount: updatedChannel.subscriberCount,
+      createdAt: updatedChannel.createdAt.toISOString(),
+    };
+  }
+
+  async updateChannelHome(id: string, dto: UpdateChannelHomeDto, request: Request) {
+    const channel = await this.assertChannelOwner(id, request);
+    const data: {
+      featuredVideoId?: string | null;
+      featuredPlaylistId?: string | null;
+      homeSectionOrder?: string[];
+    } = {};
+
+    if (dto.featuredVideoId !== undefined) {
+      data.featuredVideoId = dto.featuredVideoId ? await this.assertVideoBelongsToChannel(dto.featuredVideoId, channel.id) : null;
+    }
+    if (dto.featuredPlaylistId !== undefined) {
+      data.featuredPlaylistId = dto.featuredPlaylistId ? await this.assertPlaylistBelongsToChannelOwner(dto.featuredPlaylistId, channel.ownerId) : null;
+    }
+    if (dto.homeSectionOrder !== undefined) {
+      data.homeSectionOrder = normalizeHomeSectionOrder(dto.homeSectionOrder);
+    }
+
+    const updatedChannel = await this.prisma.channel.update({
+      where: { id: channel.id },
+      data,
+    });
+
+    return {
+      id: updatedChannel.id,
+      name: updatedChannel.name,
+      description: updatedChannel.description,
+      avatarUrl: updatedChannel.avatarUrl,
+      bannerUrl: updatedChannel.bannerUrl,
+      featuredVideoId: updatedChannel.featuredVideoId,
+      featuredPlaylistId: updatedChannel.featuredPlaylistId,
+      homeSectionOrder: updatedChannel.homeSectionOrder,
       subscriberCount: updatedChannel.subscriberCount,
       createdAt: updatedChannel.createdAt.toISOString(),
     };
@@ -128,6 +174,9 @@ export class ChannelsService {
       description: updatedChannel.description,
       avatarUrl: updatedChannel.avatarUrl,
       bannerUrl: updatedChannel.bannerUrl,
+      featuredVideoId: updatedChannel.featuredVideoId,
+      featuredPlaylistId: updatedChannel.featuredPlaylistId,
+      homeSectionOrder: updatedChannel.homeSectionOrder,
       subscriberCount: updatedChannel.subscriberCount,
       createdAt: updatedChannel.createdAt.toISOString(),
       sizeBytes: saved.sizeBytes,
@@ -214,6 +263,22 @@ export class ChannelsService {
 
     return channel;
   }
+
+  private async assertVideoBelongsToChannel(videoId: string, channelId: string) {
+    const video = await this.prisma.video.findUnique({ where: { id: videoId } });
+    if (!video || video.channelId !== channelId) {
+      throw new BadRequestException('Featured video must belong to this channel');
+    }
+    return video.id;
+  }
+
+  private async assertPlaylistBelongsToChannelOwner(playlistId: string, ownerId: string) {
+    const playlist = await this.prisma.playlist.findUnique({ where: { id: playlistId } });
+    if (!playlist || playlist.ownerId !== ownerId) {
+      throw new BadRequestException('Featured playlist must belong to this channel owner');
+    }
+    return playlist.id;
+  }
 }
 
 function normalizeChannelAssetKind(kind: string): 'avatar' | 'banner' {
@@ -234,4 +299,11 @@ function mimeTypeFromExtension(extension: string) {
   if (extension === 'png') return 'image/png';
   if (extension === 'jpg') return 'image/jpeg';
   return 'image/webp';
+}
+
+function normalizeHomeSectionOrder(order?: string[]) {
+  const uniqueSections = Array.from(new Set(order ?? []));
+  const allowedSections = uniqueSections.filter((section) => DEFAULT_HOME_SECTION_ORDER.includes(section));
+  const missingSections = DEFAULT_HOME_SECTION_ORDER.filter((section) => !allowedSections.includes(section));
+  return [...allowedSections, ...missingSections];
 }

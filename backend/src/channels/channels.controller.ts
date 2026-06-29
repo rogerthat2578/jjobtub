@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Req, StreamableFile, Uploade
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 import { ChannelsService } from './channels.service';
+import { UpdateChannelHomeDto } from './dto/update-channel-home.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 
 @Controller('channels')
@@ -27,6 +28,11 @@ export class ChannelsController {
   async getChannelAsset(@Param('id') id: string, @Param('kind') kind: 'avatar' | 'banner') {
     const file = await this.channelsService.getChannelAsset(id, kind);
     return new StreamableFile(file.stream, { type: file.mimeType });
+  }
+
+  @Patch(':id/home')
+  updateChannelHome(@Param('id') id: string, @Body() dto: UpdateChannelHomeDto, @Req() request: Request) {
+    return this.channelsService.updateChannelHome(id, dto, request);
   }
 
   @Patch(':id')

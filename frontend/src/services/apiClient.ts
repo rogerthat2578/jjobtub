@@ -6,6 +6,8 @@ import type { User } from "../types/user";
 import type { Video } from "../types/video";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
+const DEFAULT_AVATAR_URL =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Crect width='160' height='160' fill='%23e7e5e4'/%3E%3Ccircle cx='80' cy='62' r='30' fill='%2378706a'/%3E%3Cpath d='M32 142c7-30 27-46 48-46s41 16 48 46' fill='%2378706a'/%3E%3C/svg%3E";
 
 export class ApiRequestError extends Error {
   constructor(
@@ -27,6 +29,9 @@ type ApiChannel = {
   videoCount?: number;
   createdAt?: string;
   subscribedByMe?: boolean;
+  featuredVideoId?: string | null;
+  featuredPlaylistId?: string | null;
+  homeSectionOrder?: string[];
 };
 
 type ApiVideoListItem = {
@@ -61,11 +66,20 @@ type ApiVideoDetail = ApiVideoListItem & {
 type ApiPlaylist = {
   id: string;
   name: string;
+  description?: string;
   kind: "LIKED" | "CUSTOM";
   videoCount: number;
   videos: ApiVideoListItem[];
   createdAt: string;
   updatedAt: string;
+};
+
+type ApiPageInfo = {
+  page: number;
+  limit: number;
+  total: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
 };
 
 type ApiComment = {
@@ -110,6 +124,11 @@ export type SearchResult = {
   channels: Channel[];
   playlists: Playlist[];
   channelsById: Record<string, Channel>;
+  pageInfo?: {
+    videos: ApiPageInfo;
+    channels: ApiPageInfo;
+    playlists: ApiPageInfo;
+  };
 };
 
 export async function fetchVideos(params: { q?: string; category?: string; channelId?: string; sort?: string } = {}) {
@@ -124,7 +143,7 @@ export async function fetchVideos(params: { q?: string; category?: string; chann
   return mapVideoList(data.items);
 }
 
-export async function fetchSearchResults(params: { q?: string; sort?: string; type?: string } = {}): Promise<SearchResult> {
+export async function fetchSearchResults(params: { q?: string; sort?: string; type?: string; page?: string; limit?: string } = {}): Promise<SearchResult> {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value) {
@@ -132,7 +151,12 @@ export async function fetchSearchResults(params: { q?: string; sort?: string; ty
     }
   });
 
-  const data = await request<{ videos: ApiVideoListItem[]; channels: ApiChannel[]; playlists: ApiPlaylist[] }>(
+  const data = await request<{
+    videos: ApiVideoListItem[];
+    channels: ApiChannel[];
+    playlists: ApiPlaylist[];
+    pageInfo?: SearchResult["pageInfo"];
+  }>(
     `/search${toQuery(searchParams)}`,
   );
   const videoResult = mapVideoList(data.videos);
@@ -140,6 +164,7 @@ export async function fetchSearchResults(params: { q?: string; sort?: string; ty
     ...videoResult,
     channels: data.channels.map(mapChannel),
     playlists: data.playlists.map(mapPlaylist),
+    pageInfo: data.pageInfo,
   };
 }
 
@@ -245,8 +270,25 @@ export async function uploadChannelAsset(channelId: string, kind: "avatar" | "ba
   return mapChannel(channel);
 }
 
-export async function fetchComments(videoId: string) {
-  const data = await request<{ items: ApiComment[] }>(`/videos/${videoId}/comments`);
+export async function updateChannelHome(
+  channelId: string,
+  input: { featuredVideoId?: string | null; featuredPlaylistId?: string | null; homeSectionOrder?: string[] },
+) {
+  return mapChannel(
+    await request<ApiChannel>(`/channels/${channelId}/home`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+  );
+}
+
+export async function fetchComments(videoId: string, sort?: string) {
+  const searchParams = new URLSearchParams();
+  if (sort) {
+    searchParams.set("sort", sort);
+  }
+  const data = await request<{ items: ApiComment[] }>(`/videos/${videoId}/comments${toQuery(searchParams)}`);
   return data.items.map((comment) => mapComment(videoId, comment));
 }
 
@@ -256,6 +298,7 @@ export async function createComment(videoId: string, body: string, parentId?: st
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ body, parentId }),
   });
+  notifyNotificationsRefresh();
   return mapComment(videoId, comment);
 }
 
@@ -273,7 +316,9 @@ export async function deleteComment(commentId: string) {
 }
 
 export async function toggleCommentLike(commentId: string) {
-  return request<{ liked: boolean; likes: number }>(`/comments/${commentId}/like`, { method: "POST" });
+  const result = await request<{ liked: boolean; likes: number }>(`/comments/${commentId}/like`, { method: "POST" });
+  notifyNotificationsRefresh();
+  return result;
 }
 
 export async function fetchCurrentUser() {
@@ -317,6 +362,14 @@ export async function markNotificationRead(id: string) {
 
 export async function markAllNotificationsRead() {
   await request<{ ok: boolean }>("/notifications/read-all", { method: "PATCH" });
+}
+
+export async function deleteNotification(id: string) {
+  await request<{ ok: boolean }>(`/notifications/${id}`, { method: "DELETE" });
+}
+
+export async function deleteAllNotifications() {
+  await request<{ ok: boolean }>("/notifications", { method: "DELETE" });
 }
 
 export async function createVideo(input: {
@@ -397,11 +450,15 @@ export async function incrementVideoView(videoId: string) {
 }
 
 export async function toggleVideoLike(videoId: string) {
-  return request<{ liked: boolean; likes: number }>(`/videos/${videoId}/like`, { method: "POST" });
+  const result = await request<{ liked: boolean; likes: number }>(`/videos/${videoId}/like`, { method: "POST" });
+  notifyNotificationsRefresh();
+  return result;
 }
 
 export async function toggleChannelSubscription(channelId: string) {
-  return request<{ subscribed: boolean; subscribers: number }>(`/channels/${channelId}/subscribe`, { method: "POST" });
+  const result = await request<{ subscribed: boolean; subscribers: number }>(`/channels/${channelId}/subscribe`, { method: "POST" });
+  notifyNotificationsRefresh();
+  return result;
 }
 
 export async function updateChannel(
@@ -533,7 +590,7 @@ function mapChannel(channel: ApiChannel): Channel {
     id: channel.id,
     name: channel.name,
     handle: `@${channel.name}`,
-    avatarUrl: channel.avatarUrl ? absoluteApiUrl(channel.avatarUrl) : "",
+    avatarUrl: channel.avatarUrl ? absoluteApiUrl(channel.avatarUrl) : DEFAULT_AVATAR_URL,
     bannerUrl: channel.bannerUrl ? absoluteApiUrl(channel.bannerUrl) : "",
     subscribers: (channel.subscriberCount ?? 0).toLocaleString(),
     subscribersCount: channel.subscriberCount,
@@ -541,6 +598,9 @@ function mapChannel(channel: ApiChannel): Channel {
     joinedAt: channel.createdAt ? formatDate(channel.createdAt) : undefined,
     description: channel.description ?? "",
     subscribedByMe: channel.subscribedByMe,
+    featuredVideoId: channel.featuredVideoId,
+    featuredPlaylistId: channel.featuredPlaylistId,
+    homeSectionOrder: channel.homeSectionOrder,
   };
 }
 
@@ -559,6 +619,7 @@ function mapPlaylist(playlist: ApiPlaylist): Playlist {
   return {
     id: playlist.id,
     name: playlist.name,
+    description: playlist.description ?? "",
     kind: playlist.kind,
     videoCount: playlist.videoCount,
     videos: playlist.videos.map(mapVideo),
@@ -574,7 +635,7 @@ function mapComment(videoId: string, comment: ApiComment): Comment {
     parentId: comment.parentId,
     authorId: comment.author.id,
     author: comment.author.displayName,
-    avatarUrl: comment.author.avatarUrl ?? "",
+    avatarUrl: comment.author.avatarUrl ? absoluteApiUrl(comment.author.avatarUrl) : DEFAULT_AVATAR_URL,
     body: comment.body,
     postedAt: formatDate(comment.createdAt),
     likes: comment.likeCount,
@@ -603,6 +664,10 @@ function absoluteApiUrl(pathOrUrl: string) {
 function toQuery(searchParams: URLSearchParams) {
   const query = searchParams.toString();
   return query ? `?${query}` : "";
+}
+
+function notifyNotificationsRefresh() {
+  window.dispatchEvent(new CustomEvent("jjobtub:notifications-refresh"));
 }
 
 function formatDuration(totalSeconds: number) {

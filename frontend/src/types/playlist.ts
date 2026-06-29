@@ -5,6 +5,7 @@ export type PlaylistKind = "LIKED" | "CUSTOM";
 export type Playlist = {
   id: string;
   name: string;
+  description?: string;
   kind: PlaylistKind;
   videoCount: number;
   videos: Video[];

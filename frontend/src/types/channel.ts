@@ -10,4 +10,7 @@ export type Channel = {
   joinedAt?: string;
   description: string;
   subscribedByMe?: boolean;
+  featuredVideoId?: string | null;
+  featuredPlaylistId?: string | null;
+  homeSectionOrder?: string[];
 };

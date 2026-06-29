@@ -1,8 +1,8 @@
-import { Bell, LogIn, LogOut, Menu, Search, Sparkles, Tv, Upload, UserCircle, UserPlus, Video } from "lucide-react";
+import { Bell, LogIn, LogOut, Menu, Search, Sparkles, Trash2, Tv, Upload, UserCircle, UserPlus, Video } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { fetchNotifications, markAllNotificationsRead, markNotificationRead } from "../services/apiClient";
+import { deleteAllNotifications, deleteNotification, fetchNotifications, markAllNotificationsRead, markNotificationRead } from "../services/apiClient";
 import type { AppNotification } from "../types/notification";
 import { useToast } from "./ToastProvider";
 
@@ -61,13 +61,35 @@ export function Header({ onMenuClick }: HeaderProps) {
       setUnreadCount(0);
       return;
     }
-    fetchNotifications()
-      .then((result) => {
-        setNotifications(result.items);
-        setUnreadCount(result.unreadCount);
-      })
-      .catch(() => undefined);
+
+    const refresh = () => {
+      void loadNotifications();
+    };
+
+    refresh();
+    window.addEventListener("focus", refresh);
+    window.addEventListener("jjobtub:notifications-refresh", refresh);
+    const intervalId = window.setInterval(refresh, 20000);
+
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("jjobtub:notifications-refresh", refresh);
+      window.clearInterval(intervalId);
+    };
   }, [user]);
+
+  async function loadNotifications() {
+    if (!user) {
+      return;
+    }
+    try {
+      const result = await fetchNotifications();
+      setNotifications(result.items);
+      setUnreadCount(result.unreadCount);
+    } catch {
+      // Header notifications should never block the main page.
+    }
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -103,6 +125,19 @@ export function Header({ onMenuClick }: HeaderProps) {
   async function handleReadAllNotifications() {
     await markAllNotificationsRead();
     setNotifications((items) => items.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })));
+    setUnreadCount(0);
+  }
+
+  async function handleDeleteNotification(notification: AppNotification, event: { stopPropagation: () => void }) {
+    event.stopPropagation();
+    await deleteNotification(notification.id);
+    setNotifications((items) => items.filter((item) => item.id !== notification.id));
+    setUnreadCount((count) => Math.max(count - (notification.readAt ? 0 : 1), 0));
+  }
+
+  async function handleDeleteAllNotifications() {
+    await deleteAllNotifications();
+    setNotifications([]);
     setUnreadCount(0);
   }
 
@@ -157,19 +192,30 @@ export function Header({ onMenuClick }: HeaderProps) {
                   <button type="button" onClick={handleReadAllNotifications} disabled={unreadCount === 0}>
                     모두 읽음
                   </button>
+                  <button type="button" onClick={handleDeleteAllNotifications} disabled={notifications.length === 0}>
+                    모두 삭제
+                  </button>
                 </div>
                 {notifications.length > 0 ? (
                   <div className="notification-list">
                     {notifications.map((notification) => (
-                      <button
+                      <div
                         className={`notification-item ${notification.readAt ? "" : "notification-item-unread"}`}
                         key={notification.id}
-                        type="button"
-                        onClick={() => void handleNotificationClick(notification)}
                       >
-                        <span>{notification.message}</span>
-                        <small>{notification.createdAt}</small>
-                      </button>
+                        <button className="notification-item-copy" type="button" onClick={() => void handleNotificationClick(notification)}>
+                          <span>{notification.message}</span>
+                          <small>{notification.createdAt}</small>
+                        </button>
+                        <button
+                          className="notification-delete-button"
+                          type="button"
+                          onClick={(event) => void handleDeleteNotification(notification, event)}
+                          aria-label="알림 삭제"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 ) : (

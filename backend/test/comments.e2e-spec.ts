@@ -91,6 +91,9 @@ describe('Comments API', () => {
       create: jest.fn().mockResolvedValue({ id: 'comment-like-1', commentId: comment.id, userId: author.id }),
       delete: jest.fn().mockResolvedValue({ id: 'comment-like-1', commentId: comment.id, userId: author.id }),
     },
+    notification: {
+      create: jest.fn().mockResolvedValue({ id: 'notification-1' }),
+    },
   };
 
   beforeEach(() => {
@@ -146,6 +149,16 @@ describe('Comments API', () => {
     });
   });
 
+  it('supports popular comment sorting', async () => {
+    await request(app.getHttpServer()).get('/api/videos/video-1/comments?sort=popular').expect(200);
+
+    expect(prisma.comment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ likeCount: 'desc' }, { createdAt: 'desc' }],
+      }),
+    );
+  });
+
   it('creates a comment for a video', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/videos/video-1/comments')
@@ -169,6 +182,10 @@ describe('Comments API', () => {
   });
 
   it('creates a comment with the logged-in author when authorId is omitted', async () => {
+    prisma.video.findUnique
+      .mockResolvedValueOnce({ id: 'video-1' })
+      .mockResolvedValueOnce({ id: 'video-1', channel: { ownerId: 'channel-owner' } });
+
     const response = await request(app.getHttpServer())
       .post('/api/videos/video-1/comments')
       .set('Cookie', 'jjobtub_session=session-token')
@@ -195,9 +212,16 @@ describe('Comments API', () => {
       },
       include: expect.any(Object),
     });
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        linkUrl: '/watch/video-1?comment=comment-2',
+      }),
+    });
   });
 
   it('creates a reply for a parent comment', async () => {
+    prisma.comment.findUnique.mockResolvedValueOnce({ ...comment, authorId: 'parent-author' });
+
     const response = await request(app.getHttpServer())
       .post('/api/videos/video-1/comments')
       .set('Cookie', 'jjobtub_session=session-token')
@@ -219,6 +243,11 @@ describe('Comments API', () => {
         body: 'New reply',
       },
       include: expect.any(Object),
+    });
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        linkUrl: '/watch/video-1?comment=comment-2',
+      }),
     });
   });
 

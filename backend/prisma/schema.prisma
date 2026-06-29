@@ -85,6 +85,9 @@ model Channel {
   description     String
   avatarUrl       String?
   bannerUrl       String?
+  featuredVideoId String?
+  featuredPlaylistId String?
+  homeSectionOrder String[] @default(["featured", "videos", "playlists"])
   subscriberCount Int      @default(0)
   videos          Video[]
   subscriptions   ChannelSubscription[]
@@ -124,6 +127,7 @@ model Playlist {
   ownerId   String
   owner     User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name      String
+  description String        @default("")
   kind      PlaylistKind   @default(CUSTOM)
   items     PlaylistItem[]
   createdAt DateTime       @default(now())

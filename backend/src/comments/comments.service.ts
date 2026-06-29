@@ -53,7 +53,7 @@ export class CommentsService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  async listComments(videoId: string, request?: Pick<Request, 'headers'>) {
+  async listComments(videoId: string, request?: Pick<Request, 'headers'>, sort?: string) {
     const comments = await this.prisma.comment.findMany({
       where: { videoId, parentId: null },
       include: {
@@ -63,7 +63,7 @@ export class CommentsService {
           orderBy: { createdAt: 'asc' },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: commentOrderBy(sort),
     });
     const currentUser = request ? await this.authService.getCurrentUser(request) : null;
     if (!currentUser) {
@@ -125,20 +125,20 @@ export class CommentsService {
         actorId: author.id,
         type: 'REPLY',
         message: `${author.displayName}님이 내 댓글에 답글을 남겼습니다.`,
-        linkUrl: `/watch/${videoId}`,
+        linkUrl: `/watch/${videoId}?comment=${comment.id}`,
       });
     } else {
       const videoWithChannel = await this.prisma.video.findUnique({
         where: { id: videoId },
         include: { channel: true },
       });
-      if (videoWithChannel) {
+      if (videoWithChannel?.channel) {
         await this.notifications.createNotification({
           userId: videoWithChannel.channel.ownerId,
           actorId: author.id,
           type: 'COMMENT',
           message: `${author.displayName}님이 내 영상에 댓글을 남겼습니다.`,
-          linkUrl: `/watch/${videoId}`,
+          linkUrl: `/watch/${videoId}?comment=${comment.id}`,
         });
       }
     }
@@ -200,7 +200,7 @@ export class CommentsService {
       actorId: user.id,
       type: 'COMMENT_LIKE',
       message: `${user.displayName}님이 내 댓글을 좋아합니다.`,
-      linkUrl: `/watch/${targetComment.videoId}`,
+      linkUrl: `/watch/${targetComment.videoId}?comment=${targetComment.id}`,
     });
 
     return { liked: true, likes: comment.likeCount };
@@ -242,4 +242,14 @@ function markLikedByMe(comment: CommentWithAuthor, likedCommentIds: Set<string>)
     likedByMe: likedCommentIds.has(comment.id),
     replies: comment.replies?.map((reply) => markLikedByMe(reply, likedCommentIds)),
   };
+}
+
+function commentOrderBy(sort?: string) {
+  if (sort === 'popular') {
+    return [{ likeCount: 'desc' as const }, { createdAt: 'desc' as const }];
+  }
+  if (sort === 'latest') {
+    return { createdAt: 'desc' as const };
+  }
+  return { createdAt: 'asc' as const };
 }

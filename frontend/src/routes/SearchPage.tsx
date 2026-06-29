@@ -1,5 +1,5 @@
-import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { PlaylistCard } from "../components/PlaylistCard";
 import { VideoCard } from "../components/VideoCard";
 import { fetchSearchResults, type SearchResult } from "../services/apiClient";
@@ -13,20 +13,27 @@ const SEARCH_FILTERS: Array<{ value: SearchType; label: string }> = [
   { value: "playlists", label: "재생목록" },
 ];
 
+const SORT_OPTIONS = [
+  { value: "latest", label: "최신순" },
+  { value: "views", label: "조회수순" },
+  { value: "likes", label: "좋아요순" },
+];
+
 export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q")?.trim() ?? "";
   const sort = searchParams.get("sort") ?? "latest";
   const type = normalizeSearchType(searchParams.get("type"));
+  const page = normalizePage(searchParams.get("page"));
   const [result, setResult] = useState<SearchResult>({ videos: [], channels: [], playlists: [], channelsById: {} });
   const [error, setError] = useState("");
 
   useEffect(() => {
     setError("");
-    fetchSearchResults({ q: query, sort, type })
+    fetchSearchResults({ q: query, sort, type, page: String(page), limit: "12" })
       .then(setResult)
       .catch(() => setError("검색 결과를 불러오지 못했습니다."));
-  }, [query, sort, type]);
+  }, [page, query, sort, type]);
 
   function updateParam(key: string, value: string, defaultValue: string) {
     const nextParams = new URLSearchParams(searchParams);
@@ -35,24 +42,33 @@ export function SearchPage() {
     } else {
       nextParams.set(key, value);
     }
+    if (key !== "page") {
+      nextParams.delete("page");
+    }
     setSearchParams(nextParams);
   }
 
   const totalCount = result.videos.length + result.channels.length + result.playlists.length;
+  const activePageInfo = type === "all" ? undefined : result.pageInfo?.[type];
 
   return (
     <div className="page-stack">
       <div className="page-heading search-heading">
         <div>
           <h1>{query ? `"${query}" 검색 결과` : "검색 결과"}</h1>
-          <p>영상 {result.videos.length}개 · 채널 {result.channels.length}개 · 재생목록 {result.playlists.length}개</p>
+          <p>
+            영상 {result.pageInfo?.videos.total ?? result.videos.length}개 · 채널 {result.pageInfo?.channels.total ?? result.channels.length}개 · 재생목록{" "}
+            {result.pageInfo?.playlists.total ?? result.playlists.length}개
+          </p>
         </div>
         <label className="sort-control">
           <span>정렬</span>
           <select value={sort} onChange={(event) => updateParam("sort", event.target.value, "latest")}>
-            <option value="latest">최신순</option>
-            <option value="views">조회수순</option>
-            <option value="likes">좋아요순</option>
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </label>
       </div>
@@ -73,7 +89,7 @@ export function SearchPage() {
       {error ? (
         <p className="empty-state">{error}</p>
       ) : totalCount === 0 ? (
-        <p className="empty-state">검색 결과가 없습니다. 다른 검색어를 입력해 보세요.</p>
+        <p className="empty-state">검색 결과가 없습니다. 제목, 태그, 채널명, 카테고리, 설명을 다른 단어로 검색해보세요.</p>
       ) : (
         <div className="page-stack">
           {(type === "all" || type === "videos") && result.videos.length > 0 && (
@@ -96,7 +112,9 @@ export function SearchPage() {
                     <img src={channel.avatarUrl} alt="" />
                     <span>
                       <strong>{channel.name}</strong>
-                      <small>구독자 {channel.subscribers}명 · 영상 {(channel.videoCount ?? 0).toLocaleString()}개</small>
+                      <small>
+                        구독자 {channel.subscribers}명 · 영상 {(channel.videoCount ?? 0).toLocaleString()}개
+                      </small>
                       <em>{channel.description || "채널 설명이 없습니다."}</em>
                     </span>
                   </Link>
@@ -117,6 +135,20 @@ export function SearchPage() {
           )}
         </div>
       )}
+
+      {activePageInfo && (activePageInfo.hasPreviousPage || activePageInfo.hasNextPage) && (
+        <div className="pagination-row" aria-label="검색 결과 페이지">
+          <button type="button" disabled={!activePageInfo.hasPreviousPage} onClick={() => updateParam("page", String(page - 1), "1")}>
+            이전
+          </button>
+          <span>
+            {activePageInfo.page} / {Math.max(Math.ceil(activePageInfo.total / activePageInfo.limit), 1)}
+          </span>
+          <button type="button" disabled={!activePageInfo.hasNextPage} onClick={() => updateParam("page", String(page + 1), "1")}>
+            다음
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -126,4 +158,9 @@ function normalizeSearchType(value: string | null): SearchType {
     return value;
   }
   return "all";
+}
+
+function normalizePage(value: string | null) {
+  const page = Number(value);
+  return Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
 }

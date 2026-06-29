@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Req } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Patch, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { NotificationsService } from './notifications.service';
 
@@ -14,6 +14,16 @@ export class NotificationsController {
   @Patch('read-all')
   markAllAsRead(@Req() request: Request) {
     return this.notificationsService.markAllAsRead(request);
+  }
+
+  @Delete()
+  deleteAll(@Req() request: Request) {
+    return this.notificationsService.deleteAll(request);
+  }
+
+  @Delete(':id')
+  deleteNotification(@Param('id') id: string, @Req() request: Request) {
+    return this.notificationsService.deleteNotification(id, request);
   }
 
   @Patch(':id/read')

@@ -12,6 +12,7 @@ import {
   fetchPlaylists,
   toggleChannelSubscription,
   updateChannel,
+  updateChannelHome,
   uploadChannelAsset,
   type VideoListResult,
 } from "../services/apiClient";
@@ -24,6 +25,7 @@ type ChannelPageProps = {
 };
 
 type ChannelTab = "home" | "videos" | "playlists" | "about";
+type HomeSection = "featured" | "videos" | "playlists";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Crect width='160' height='160' fill='%23e7e5e4'/%3E%3Ccircle cx='80' cy='62' r='30' fill='%2378706a'/%3E%3Cpath d='M32 142c7-30 27-46 48-46s41 16 48 46' fill='%2378706a'/%3E%3C/svg%3E";
@@ -46,8 +48,12 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const [editBannerUrl, setEditBannerUrl] = useState("");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingHome, setIsSavingHome] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [uploadingAsset, setUploadingAsset] = useState<"avatar" | "banner" | null>(null);
+  const [featuredVideoId, setFeaturedVideoId] = useState("");
+  const [featuredPlaylistId, setFeaturedPlaylistId] = useState("");
+  const [homeSectionOrder, setHomeSectionOrder] = useState<HomeSection[]>(["featured", "videos", "playlists"]);
 
   useEffect(() => {
     const targetChannelId = isMine ? user?.channelId : channelId;
@@ -68,6 +74,9 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
         setEditDescription(channelResult.description);
         setEditAvatarUrl(channelResult.avatarUrl);
         setEditBannerUrl(channelResult.bannerUrl);
+        setFeaturedVideoId(channelResult.featuredVideoId ?? "");
+        setFeaturedPlaylistId(channelResult.featuredPlaylistId ?? "");
+        setHomeSectionOrder(normalizeHomeSections(channelResult.homeSectionOrder));
         setVideos(videoResult);
         setPlaylists(playlistResult);
         setActiveTab("home");
@@ -139,6 +148,10 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
 
     setUploadingAsset(kind);
     setError("");
+    const previousChannel = channel;
+    const previewUrl = URL.createObjectURL(file);
+    setChannel({ ...channel, [kind === "avatar" ? "avatarUrl" : "bannerUrl"]: previewUrl });
+
     try {
       const updatedChannel = await uploadChannelAsset(channel.id, kind, file);
       setChannel({ ...updatedChannel, videoCount: channel.videoCount, joinedAt: channel.joinedAt });
@@ -146,13 +159,39 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
       setEditBannerUrl(updatedChannel.bannerUrl);
       showToast(kind === "avatar" ? "채널 아바타를 업데이트했습니다." : "채널 배너를 업데이트했습니다.", "success");
     } catch {
-      setError("이미지를 업로드하지 못했습니다. PNG, JPEG, WebP 파일을 확인하세요.");
+      setChannel(previousChannel);
+      setError("이미지를 업로드하지 못했습니다. PNG, JPEG, WebP 파일인지 확인하세요.");
       showToast("채널 이미지를 업로드하지 못했습니다.", "error");
     } finally {
+      URL.revokeObjectURL(previewUrl);
       setUploadingAsset(null);
     }
   }
 
+  async function handleHomeSettingsSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!channel || isSavingHome) {
+      return;
+    }
+
+    setIsSavingHome(true);
+    setError("");
+    try {
+      const updatedChannel = await updateChannelHome(channel.id, {
+        featuredVideoId: featuredVideoId || null,
+        featuredPlaylistId: featuredPlaylistId || null,
+        homeSectionOrder,
+      });
+      setChannel({ ...updatedChannel, videoCount: channel.videoCount, joinedAt: channel.joinedAt });
+      setHomeSectionOrder(normalizeHomeSections(updatedChannel.homeSectionOrder));
+      showToast("채널 홈 구성이 저장되었습니다.", "success");
+    } catch {
+      setError("채널 홈 구성을 저장하지 못했습니다.");
+      showToast("채널 홈 저장에 실패했습니다.", "error");
+    } finally {
+      setIsSavingHome(false);
+    }
+  }
   if (isMine && !isLoading && !user) {
     return <Navigate to="/login" replace />;
   }
@@ -168,8 +207,9 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const canManageChannel = Boolean(user?.channelId && user.channelId === channel.id);
   const videoCount = channel.videoCount ?? videos.videos.length;
   const featuredVideos = videos.videos.slice(0, 6);
-  const featuredVideo = videos.videos[0];
-  const featuredPlaylist = playlists[0];
+  const featuredVideo = videos.videos.find((video) => video.id === (channel.featuredVideoId || featuredVideoId)) ?? videos.videos[0];
+  const featuredPlaylist = playlists.find((playlist) => playlist.id === (channel.featuredPlaylistId || featuredPlaylistId)) ?? playlists[0];
+  const orderedHomeSections = normalizeHomeSections(channel.homeSectionOrder ?? homeSectionOrder);
 
   return (
     <div className="page-stack">
@@ -277,33 +317,104 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
 
       {activeTab === "home" && (
         <section className="page-stack">
-          {(featuredVideo || featuredPlaylist) && (
-            <section className="channel-featured-grid" aria-label="채널 대표 콘텐츠">
-              {featuredVideo && (
-                <div className="channel-featured-panel">
-                  <h2>대표 영상</h2>
-                  <VideoGrid videos={[featuredVideo]} channelsById={videos.channelsById} renderActions={canManageChannel ? renderOwnerBadge : undefined} />
-                </div>
-              )}
-              {featuredPlaylist && (
-                <div className="channel-featured-panel">
-                  <h2>대표 재생목록</h2>
-                  <PlaylistCard playlist={featuredPlaylist} onEmpty={() => showToast("재생할 영상이 없습니다.", "info")} />
-                </div>
-              )}
-            </section>
+          {canManageChannel && (
+            <form className="channel-home-settings" onSubmit={handleHomeSettingsSubmit}>
+              <div>
+                <h2>홈 구성</h2>
+                <p>대표 영상과 재생목록을 고르고 채널 홈의 표시 순서를 정합니다.</p>
+              </div>
+              <div className="channel-home-setting-grid">
+                <label>
+                  <span>대표 영상</span>
+                  <select value={featuredVideoId} onChange={(event) => setFeaturedVideoId(event.target.value)}>
+                    <option value="">최신 영상 자동 선택</option>
+                    {videos.videos.map((video) => (
+                      <option key={video.id} value={video.id}>
+                        {video.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>대표 재생목록</span>
+                  <select value={featuredPlaylistId} onChange={(event) => setFeaturedPlaylistId(event.target.value)}>
+                    <option value="">최근 재생목록 자동 선택</option>
+                    {playlists.map((playlist) => (
+                      <option key={playlist.id} value={playlist.id}>
+                        {playlist.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="channel-section-order" aria-label="채널 홈 섹션 순서">
+                {(["featured", "videos", "playlists"] as HomeSection[]).map((section) => (
+                  <button
+                    key={section}
+                    type="button"
+                    className={homeSectionOrder[0] === section ? "active" : ""}
+                    onClick={() => setHomeSectionOrder(moveSectionFirst(section, homeSectionOrder))}
+                  >
+                    {homeSectionLabel(section)} 먼저
+                  </button>
+                ))}
+              </div>
+              <button className="primary-button" type="submit" disabled={isSavingHome}>
+                {isSavingHome ? "저장 중" : "홈 구성 저장"}
+              </button>
+            </form>
           )}
-          <div className="section-heading-row">
-            <div>
-              <h2>최근 영상</h2>
-              <p>{canManageChannel ? "내 채널에서는 비공개 및 업로드 중 영상도 함께 표시됩니다." : "공개된 최신 영상을 보여줍니다."}</p>
-            </div>
-          </div>
-          {featuredVideos.length > 0 ? (
-            <VideoGrid videos={featuredVideos} channelsById={videos.channelsById} renderActions={canManageChannel ? renderOwnerBadge : undefined} />
-          ) : (
-            <p className="empty-state">아직 표시할 영상이 없습니다.</p>
-          )}
+
+          {orderedHomeSections.map((section) => {
+            if (section === "featured" && (featuredVideo || featuredPlaylist)) {
+              return (
+                <section className="channel-featured-grid" aria-label="채널 대표 콘텐츠" key={section}>
+                  {featuredVideo && (
+                    <div className="channel-featured-panel">
+                      <h2>대표 영상</h2>
+                      <VideoGrid videos={[featuredVideo]} channelsById={videos.channelsById} renderActions={canManageChannel ? renderOwnerBadge : undefined} />
+                    </div>
+                  )}
+                  {featuredPlaylist && (
+                    <div className="channel-featured-panel">
+                      <h2>대표 재생목록</h2>
+                      <PlaylistCard playlist={featuredPlaylist} onEmpty={() => showToast("재생할 영상이 없습니다.", "info")} />
+                    </div>
+                  )}
+                </section>
+              );
+            }
+
+            if (section === "videos") {
+              return (
+                <section className="page-stack" key={section}>
+                  <div className="section-heading-row">
+                    <div>
+                      <h2>최근 영상</h2>
+                      <p>{canManageChannel ? "내 채널에서는 비공개 및 업로드 중 영상도 함께 표시됩니다." : "공개된 최신 영상을 보여줍니다."}</p>
+                    </div>
+                  </div>
+                  {featuredVideos.length > 0 ? (
+                    <VideoGrid videos={featuredVideos} channelsById={videos.channelsById} renderActions={canManageChannel ? renderOwnerBadge : undefined} />
+                  ) : (
+                    <p className="empty-state">아직 표시할 영상이 없습니다.</p>
+                  )}
+                </section>
+              );
+            }
+
+            if (section === "playlists" && playlists.length > 0) {
+              return (
+                <section className="playlist-grid" aria-label="채널 홈 재생목록" key={section}>
+                  {playlists.slice(0, 4).map((playlist) => (
+                    <PlaylistCard key={playlist.id} playlist={playlist} onEmpty={() => showToast("재생할 영상이 없습니다.", "info")} />
+                  ))}
+                </section>
+              );
+            }
+
+            return null;
+          })}
         </section>
       )}
 
@@ -390,4 +501,21 @@ function statusLabel(status: string) {
   if (status === "FAILED") return "처리 실패";
   if (status === "DRAFT") return "초안";
   return status;
+}
+
+function normalizeHomeSections(sections?: string[]): HomeSection[] {
+  const allowedSections: HomeSection[] = ["featured", "videos", "playlists"];
+  const uniqueSections = Array.from(new Set(sections ?? []));
+  const validSections = uniqueSections.filter((section): section is HomeSection => allowedSections.includes(section as HomeSection));
+  return [...validSections, ...allowedSections.filter((section) => !validSections.includes(section))];
+}
+
+function moveSectionFirst(section: HomeSection, sections: HomeSection[]) {
+  return [section, ...sections.filter((item) => item !== section)];
+}
+
+function homeSectionLabel(section: HomeSection) {
+  if (section === "featured") return "대표";
+  if (section === "videos") return "영상";
+  return "재생목록";
 }

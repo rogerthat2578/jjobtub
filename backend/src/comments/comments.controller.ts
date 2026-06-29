@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -9,8 +9,8 @@ export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
 
   @Get()
-  listComments(@Param('videoId') videoId: string, @Req() request: Request) {
-    return this.commentsService.listComments(videoId, request);
+  listComments(@Param('videoId') videoId: string, @Query('sort') sort: string | undefined, @Req() request: Request) {
+    return this.commentsService.listComments(videoId, request, sort);
   }
 
   @Post()

@@ -236,6 +236,8 @@ img {
 .notification-item {
   width: 100%;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  align-items: center;
   gap: 4px;
   border: 0;
   border-bottom: 1px solid var(--border);
@@ -243,7 +245,35 @@ img {
   color: var(--text);
   background: transparent;
   text-align: left;
+}
+
+.notification-item-copy {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 4px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
   cursor: pointer;
+}
+
+.notification-delete-button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.notification-delete-button:hover {
+  color: #991b1b;
+  background: #fee2e2;
 }
 
 .notification-item:hover,
@@ -989,7 +1019,6 @@ img {
 .custom-player-mini {
   position: fixed;
   z-index: 60;
-  width: min(420px, calc(100vw - 32px));
   aspect-ratio: auto;
   box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
 }
@@ -1027,6 +1056,27 @@ img {
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.mini-player-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  width: 22px;
+  height: 22px;
+  cursor: nwse-resize;
+}
+
+.mini-player-resize::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid rgba(255, 255, 255, 0.78);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.78);
 }
 
 .player-control-layer {
@@ -1453,7 +1503,16 @@ img {
   margin-top: 28px;
 }
 
+.comments-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .comments-section h2 {
+  margin: 0;
   font-size: 20px;
 }
 
@@ -1507,6 +1566,7 @@ img {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
   gap: 12px;
+  scroll-margin-top: 96px;
 }
 
 .comment-heading {
@@ -1745,6 +1805,86 @@ img {
 .channel-featured-panel h2 {
   margin: 0;
   font-size: 20px;
+}
+
+.channel-home-settings {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.channel-home-settings h2,
+.channel-home-settings p {
+  margin: 0;
+}
+
+.channel-home-settings p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.channel-home-setting-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.channel-home-setting-grid label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  font-weight: 800;
+}
+
+.channel-home-setting-grid select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d6d3d1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.channel-section-order,
+.comment-sort-tabs,
+.pagination-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.channel-section-order button,
+.comment-sort-tabs button,
+.pagination-row button {
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.channel-section-order button.active,
+.comment-sort-tabs button.active {
+  color: #ffffff;
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+.pagination-row {
+  justify-content: center;
+}
+
+.pagination-row button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  background: var(--surface);
 }
 
 .channel-info-panel {
@@ -2666,6 +2806,33 @@ img {
   .watch-actions {
     width: 100%;
     flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .channel-home-setting-grid,
+  .channel-featured-grid,
+  .channel-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .comments-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .comment-sort-tabs,
+  .channel-section-order,
+  .pagination-row {
+    width: 100%;
+  }
+
+  .notification-popover-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .notification-popover-header button {
+    min-height: 30px;
   }
 
   .playlist-queue-item {

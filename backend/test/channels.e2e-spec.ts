@@ -11,6 +11,9 @@ const channel = {
   description: 'Channel endpoint tests',
   avatarUrl: null,
   bannerUrl: null,
+  featuredVideoId: null,
+  featuredPlaylistId: null,
+  homeSectionOrder: ['featured', 'videos', 'playlists'],
   subscriberCount: 22,
   createdAt: new Date('2026-06-26T01:00:00.000Z'),
   updatedAt: new Date('2026-06-26T01:00:00.000Z'),
@@ -51,8 +54,16 @@ describe('Channels API', () => {
       update: jest.fn().mockResolvedValue({ ...channel, subscriberCount: 23 }),
     },
     video: {
+      findUnique: jest.fn().mockResolvedValue(video),
       findMany: jest.fn().mockResolvedValue([video]),
       count: jest.fn().mockResolvedValue(2),
+    },
+    playlist: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'playlist-1', ownerId: 'user-1', kind: 'CUSTOM' }),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    notification: {
+      create: jest.fn().mockResolvedValue({ id: 'notification-1' }),
     },
     session: {
       findUnique: jest.fn().mockResolvedValue({
@@ -80,8 +91,11 @@ describe('Channels API', () => {
     jest.resetAllMocks();
     prisma.channel.findUnique.mockResolvedValue(channel);
     prisma.channel.update.mockResolvedValue({ ...channel, subscriberCount: 23 });
+    prisma.video.findUnique.mockResolvedValue(video);
     prisma.video.findMany.mockResolvedValue([video]);
     prisma.video.count.mockResolvedValue(2);
+    prisma.playlist.findUnique.mockResolvedValue({ id: 'playlist-1', ownerId: 'user-1', kind: 'CUSTOM' });
+    prisma.playlist.findMany.mockResolvedValue([]);
     prisma.session.findUnique.mockResolvedValue({
       id: 'session-1',
       userId: 'user-2',
@@ -212,6 +226,53 @@ describe('Channels API', () => {
         description: 'Updated description',
         avatarUrl: 'https://example.com/avatar.png',
         bannerUrl: 'https://example.com/banner.png',
+      },
+    });
+  });
+
+  it('updates channel home layout for the channel owner', async () => {
+    prisma.session.findUnique.mockResolvedValueOnce({
+      id: 'session-owner',
+      userId: 'user-1',
+      token: 'owner-token',
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      createdAt: new Date('2026-06-26T00:00:00.000Z'),
+      user: {
+        id: 'user-1',
+        email: 'owner@jjobtub.local',
+        displayName: 'Owner',
+        avatarUrl: null,
+      },
+    });
+    prisma.channel.update.mockResolvedValueOnce({
+      ...channel,
+      featuredVideoId: 'video-1',
+      featuredPlaylistId: 'playlist-1',
+      homeSectionOrder: ['videos', 'featured', 'playlists'],
+    });
+
+    const response = await request(app.getHttpServer())
+      .patch('/api/channels/channel-1/home')
+      .set('Cookie', 'jjobtub_session=owner-token')
+      .send({
+        featuredVideoId: 'video-1',
+        featuredPlaylistId: 'playlist-1',
+        homeSectionOrder: ['videos', 'featured', 'playlists', 'bad-section'],
+      })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: 'channel-1',
+      featuredVideoId: 'video-1',
+      featuredPlaylistId: 'playlist-1',
+      homeSectionOrder: ['videos', 'featured', 'playlists'],
+    });
+    expect(prisma.channel.update).toHaveBeenCalledWith({
+      where: { id: 'channel-1' },
+      data: {
+        featuredVideoId: 'video-1',
+        featuredPlaylistId: 'playlist-1',
+        homeSectionOrder: ['videos', 'featured', 'playlists'],
       },
     });
   });
