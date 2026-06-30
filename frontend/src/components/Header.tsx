@@ -27,6 +27,8 @@ type HeaderProps = {
   onMenuClick: () => void;
 };
 
+type NotificationFilter = "all" | "unread" | AppNotification["type"];
+
 export function Header({ onMenuClick }: HeaderProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -39,6 +41,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>("all");
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const notificationMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -86,14 +89,24 @@ export function Header({ onMenuClick }: HeaderProps) {
     refresh();
     window.addEventListener("focus", refresh);
     window.addEventListener("jjobtub:notifications-refresh", refresh);
+    window.addEventListener("storage", handleNotificationStorageRefresh);
     const intervalId = window.setInterval(refresh, 20000);
+    const broadcastChannel = createNotificationBroadcastChannel(refresh);
 
     return () => {
       window.removeEventListener("focus", refresh);
       window.removeEventListener("jjobtub:notifications-refresh", refresh);
+      window.removeEventListener("storage", handleNotificationStorageRefresh);
       window.clearInterval(intervalId);
+      broadcastChannel?.close();
     };
   }, [user]);
+
+  function handleNotificationStorageRefresh(event: StorageEvent) {
+    if (event.key === "jjobtub:notifications-refresh") {
+      void loadNotifications();
+    }
+  }
 
   async function loadNotifications() {
     if (!user) {
@@ -158,6 +171,9 @@ export function Header({ onMenuClick }: HeaderProps) {
     setUnreadCount(0);
   }
 
+  const filteredNotifications = filterNotifications(notifications, notificationFilter);
+  const notificationFilters = buildNotificationFilters(notifications, unreadCount);
+
   return (
     <header className="topbar">
       <div className="brand-row">
@@ -214,8 +230,22 @@ export function Header({ onMenuClick }: HeaderProps) {
                   </button>
                 </div>
                 {notifications.length > 0 ? (
+                  <>
+                  <div className="notification-filter-row" aria-label="알림 필터">
+                    {notificationFilters.map((filter) => (
+                      <button
+                        className={notificationFilter === filter.value ? "notification-filter-active" : ""}
+                        key={filter.value}
+                        type="button"
+                        onClick={() => setNotificationFilter(filter.value)}
+                      >
+                        <span>{filter.label}</span>
+                        <small>{filter.count}</small>
+                      </button>
+                    ))}
+                  </div>
                   <div className="notification-list">
-                    {notifications.map((notification) => (
+                    {filteredNotifications.map((notification) => (
                       <div
                         className={`notification-item notification-type-${notification.type.toLowerCase().replace("_", "-")} ${
                           notification.readAt ? "" : "notification-item-unread"
@@ -240,6 +270,8 @@ export function Header({ onMenuClick }: HeaderProps) {
                       </div>
                     ))}
                   </div>
+                  {filteredNotifications.length === 0 && <p className="notification-empty">이 필터에 해당하는 알림이 없습니다.</p>}
+                  </>
                 ) : (
                   <p className="notification-empty">새 알림이 없습니다.</p>
                 )}
@@ -314,6 +346,45 @@ export function Header({ onMenuClick }: HeaderProps) {
       </div>
     </header>
   );
+}
+
+function createNotificationBroadcastChannel(refresh: () => void) {
+  try {
+    const channel = new BroadcastChannel("jjobtub:notifications");
+    channel.onmessage = refresh;
+    return channel;
+  } catch {
+    return null;
+  }
+}
+
+function filterNotifications(notifications: AppNotification[], filter: NotificationFilter) {
+  if (filter === "unread") {
+    return notifications.filter((notification) => !notification.readAt);
+  }
+  if (filter === "all") {
+    return notifications;
+  }
+  return notifications.filter((notification) => notification.type === filter);
+}
+
+function buildNotificationFilters(notifications: AppNotification[], unreadCount: number): Array<{ value: NotificationFilter; label: string; count: number }> {
+  const typeCounts = notifications.reduce<Record<AppNotification["type"], number>>(
+    (counts, notification) => ({ ...counts, [notification.type]: counts[notification.type] + 1 }),
+    { COMMENT: 0, REPLY: 0, COMMENT_LIKE: 0, VIDEO_LIKE: 0, SUBSCRIPTION: 0 },
+  );
+
+  const filters: Array<{ value: NotificationFilter; label: string; count: number }> = [
+    { value: "all", label: "전체", count: notifications.length },
+    { value: "unread", label: "읽지 않음", count: unreadCount },
+    { value: "COMMENT", label: "댓글", count: typeCounts.COMMENT },
+    { value: "REPLY", label: "답글", count: typeCounts.REPLY },
+    { value: "COMMENT_LIKE", label: "댓글 좋아요", count: typeCounts.COMMENT_LIKE },
+    { value: "VIDEO_LIKE", label: "영상 좋아요", count: typeCounts.VIDEO_LIKE },
+    { value: "SUBSCRIPTION", label: "구독", count: typeCounts.SUBSCRIPTION },
+  ];
+
+  return filters.filter((filter) => filter.value === "all" || filter.value === "unread" || filter.count > 0);
 }
 
 function renderNotificationIcon(type: AppNotification["type"]) {

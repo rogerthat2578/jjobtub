@@ -1,4 +1,4 @@
-import { Bell, Pencil } from "lucide-react";
+import { Bell, Image, LayoutDashboard, Pencil, Settings } from "lucide-react";
 import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -26,6 +26,7 @@ type ChannelPageProps = {
 
 type ChannelTab = "home" | "videos" | "playlists" | "about";
 type HomeSection = "featured" | "videos" | "playlists";
+type ChannelManagementPanel = "profile" | "home" | "status";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Crect width='160' height='160' fill='%23e7e5e4'/%3E%3Ccircle cx='80' cy='62' r='30' fill='%2378706a'/%3E%3Cpath d='M32 142c7-30 27-46 48-46s41 16 48 46' fill='%2378706a'/%3E%3C/svg%3E";
@@ -41,7 +42,6 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activeTab, setActiveTab] = useState<ChannelTab>("home");
   const [notFound, setNotFound] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editAvatarUrl, setEditAvatarUrl] = useState("");
@@ -54,6 +54,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const [featuredVideoId, setFeaturedVideoId] = useState("");
   const [featuredPlaylistId, setFeaturedPlaylistId] = useState("");
   const [homeSectionOrder, setHomeSectionOrder] = useState<HomeSection[]>(["featured", "videos", "playlists"]);
+  const [activeManagementPanel, setActiveManagementPanel] = useState<ChannelManagementPanel>("profile");
 
   useEffect(() => {
     const targetChannelId = isMine ? user?.channelId : channelId;
@@ -102,7 +103,6 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
         bannerUrl: editBannerUrl,
       });
       setChannel({ ...updatedChannel, videoCount: channel.videoCount, joinedAt: channel.joinedAt });
-      setIsEditing(false);
       showToast("채널 정보가 저장되었습니다.", "success");
     } catch {
       setError("채널 정보를 저장하지 못했습니다.");
@@ -217,8 +217,72 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
         <img className="channel-banner" src={channel.bannerUrl || DEFAULT_BANNER} alt="" />
         <div className="channel-profile">
           <img src={channel.avatarUrl || DEFAULT_AVATAR} alt="" />
-          {isEditing ? (
-            <form className="channel-edit-form" onSubmit={handleChannelSubmit}>
+          <div className="channel-summary">
+            <h1>{channel.name}</h1>
+            <p className="channel-stats">
+              {channel.handle} · 구독자 {channel.subscribers}명 · 영상 {videoCount.toLocaleString()}개 · 가입일 {channel.joinedAt ?? "-"}
+            </p>
+            <p>{channel.description || "채널 설명이 아직 없습니다."}</p>
+          </div>
+          {canManageChannel ? (
+            <button
+              className="subscribe-button"
+              type="button"
+              onClick={() => {
+                setActiveManagementPanel("profile");
+              }}
+            >
+              <Settings size={17} />
+              관리 메뉴
+            </button>
+          ) : (
+            <button
+              className={`subscribe-button ${channel.subscribedByMe ? "subscribe-button-active" : ""}`}
+              type="button"
+              onClick={handleSubscribe}
+              disabled={isSubscribing}
+              aria-pressed={Boolean(channel.subscribedByMe)}
+            >
+              <Bell size={17} />
+              {isSubscribing ? "처리 중" : channel.subscribedByMe ? "구독 중" : "구독"}
+            </button>
+          )}
+        </div>
+      </section>
+
+      {canManageChannel && (
+        <section className="channel-owner-console" aria-label="채널 관리">
+          <div className="channel-owner-console-header">
+            <div>
+              <h2>채널 관리</h2>
+              <p>채널 소유자에게만 보이는 관리 영역입니다.</p>
+            </div>
+            <div className="channel-owner-menu" aria-label="채널 관리 메뉴">
+              {([
+                { value: "profile", label: "채널 정보", icon: Pencil },
+                { value: "home", label: "홈 구성", icon: LayoutDashboard },
+                { value: "status", label: "상태 요약", icon: Image },
+              ] as const).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    className={activeManagementPanel === item.value ? "active" : ""}
+                    key={item.value}
+                    type="button"
+                    onClick={() => {
+                      setActiveManagementPanel(item.value);
+                    }}
+                  >
+                    <Icon size={17} />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {activeManagementPanel === "profile" && (
+            <form className="channel-edit-form channel-owner-panel" onSubmit={handleChannelSubmit}>
               <label>
                 <span>채널 이름</span>
                 <input value={editName} onChange={(event) => setEditName(event.target.value)} maxLength={80} />
@@ -227,14 +291,16 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
                 <span>설명</span>
                 <textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} rows={3} maxLength={1000} />
               </label>
-              <label>
-                <span>아바타 URL</span>
-                <input value={editAvatarUrl} onChange={(event) => setEditAvatarUrl(event.target.value)} placeholder="https://..." />
-              </label>
-              <label>
-                <span>배너 URL</span>
-                <input value={editBannerUrl} onChange={(event) => setEditBannerUrl(event.target.value)} placeholder="https://..." />
-              </label>
+              <div className="channel-home-setting-grid">
+                <label>
+                  <span>아바타 URL</span>
+                  <input value={editAvatarUrl} onChange={(event) => setEditAvatarUrl(event.target.value)} placeholder="https://..." />
+                </label>
+                <label>
+                  <span>배너 URL</span>
+                  <input value={editBannerUrl} onChange={(event) => setEditBannerUrl(event.target.value)} placeholder="https://..." />
+                </label>
+              </div>
               <div className="channel-asset-upload-row">
                 <label className="pill-button">
                   <span>{uploadingAsset === "avatar" ? "아바타 업로드 중" : "아바타 파일"}</span>
@@ -259,66 +325,27 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
               </div>
               {error && <p className="form-error">{error}</p>}
               <div className="video-management-row">
-                <button className="pill-button" type="button" onClick={() => setIsEditing(false)}>
-                  취소
+                <button
+                  className="pill-button"
+                  type="button"
+                  onClick={() => {
+                    setEditName(channel.name);
+                    setEditDescription(channel.description);
+                    setEditAvatarUrl(channel.avatarUrl);
+                    setEditBannerUrl(channel.bannerUrl);
+                  }}
+                >
+                  되돌리기
                 </button>
                 <button className="primary-button" type="submit" disabled={isSaving}>
-                  {isSaving ? "저장 중" : "저장"}
+                  {isSaving ? "저장 중" : "채널 정보 저장"}
                 </button>
               </div>
             </form>
-          ) : (
-            <div className="channel-summary">
-              <h1>{channel.name}</h1>
-              <p className="channel-stats">
-                {channel.handle} · 구독자 {channel.subscribers}명 · 영상 {videoCount.toLocaleString()}개 · 가입일 {channel.joinedAt ?? "-"}
-              </p>
-              <p>{channel.description || "채널 설명이 아직 없습니다."}</p>
-            </div>
           )}
-          {canManageChannel ? (
-            !isEditing && (
-              <button className="subscribe-button" type="button" onClick={() => setIsEditing(true)}>
-                <Pencil size={17} />
-                채널 수정
-              </button>
-            )
-          ) : (
-            <button
-              className={`subscribe-button ${channel.subscribedByMe ? "subscribe-button-active" : ""}`}
-              type="button"
-              onClick={handleSubscribe}
-              disabled={isSubscribing}
-              aria-pressed={Boolean(channel.subscribedByMe)}
-            >
-              <Bell size={17} />
-              {isSubscribing ? "처리 중" : channel.subscribedByMe ? "구독 중" : "구독"}
-            </button>
-          )}
-        </div>
-      </section>
 
-      <nav className="channel-tabs" aria-label="채널 탭">
-        <button type="button" className={activeTab === "home" ? "active" : ""} onClick={() => setActiveTab("home")}>
-          홈
-        </button>
-        <button type="button" className={activeTab === "videos" ? "active" : ""} onClick={() => setActiveTab("videos")}>
-          영상
-        </button>
-        {(canManageChannel || playlists.length > 0) && (
-          <button type="button" className={activeTab === "playlists" ? "active" : ""} onClick={() => setActiveTab("playlists")}>
-            재생 목록
-          </button>
-        )}
-        <button type="button" className={activeTab === "about" ? "active" : ""} onClick={() => setActiveTab("about")}>
-          정보
-        </button>
-      </nav>
-
-      {activeTab === "home" && (
-        <section className="page-stack">
-          {canManageChannel && (
-            <form className="channel-home-settings" onSubmit={handleHomeSettingsSubmit}>
+          {activeManagementPanel === "home" && (
+            <form className="channel-home-settings channel-owner-panel" onSubmit={handleHomeSettingsSubmit}>
               <div>
                 <h2>홈 구성</h2>
                 <p>대표 영상과 재생목록을 고르고 채널 홈의 표시 순서를 정합니다.</p>
@@ -359,12 +386,51 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
                   </button>
                 ))}
               </div>
+              {error && <p className="form-error">{error}</p>}
               <button className="primary-button" type="submit" disabled={isSavingHome}>
                 {isSavingHome ? "저장 중" : "홈 구성 저장"}
               </button>
             </form>
           )}
 
+          {activeManagementPanel === "status" && (
+            <div className="channel-owner-panel channel-owner-status">
+              <div>
+                <strong>{videos.videos.length.toLocaleString()}개</strong>
+                <span>관리 가능한 영상</span>
+              </div>
+              <div>
+                <strong>{playlists.length.toLocaleString()}개</strong>
+                <span>재생목록</span>
+              </div>
+              <div>
+                <strong>{videos.videos.filter((video) => video.status && video.status !== "READY").length.toLocaleString()}개</strong>
+                <span>처리 확인 필요</span>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      <nav className="channel-tabs" aria-label="채널 탭">
+        <button type="button" className={activeTab === "home" ? "active" : ""} onClick={() => setActiveTab("home")}>
+          홈
+        </button>
+        <button type="button" className={activeTab === "videos" ? "active" : ""} onClick={() => setActiveTab("videos")}>
+          영상
+        </button>
+        {(canManageChannel || playlists.length > 0) && (
+          <button type="button" className={activeTab === "playlists" ? "active" : ""} onClick={() => setActiveTab("playlists")}>
+            재생 목록
+          </button>
+        )}
+        <button type="button" className={activeTab === "about" ? "active" : ""} onClick={() => setActiveTab("about")}>
+          정보
+        </button>
+      </nav>
+
+      {activeTab === "home" && (
+        <section className="page-stack">
           {orderedHomeSections.map((section) => {
             if (section === "featured" && (featuredVideo || featuredPlaylist)) {
               return (

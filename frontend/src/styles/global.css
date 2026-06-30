@@ -58,8 +58,12 @@ a {
 
 .visually-hidden {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
@@ -253,6 +257,53 @@ img {
 .notification-list {
   max-height: 360px;
   overflow: auto;
+}
+
+.notification-filter-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: none;
+}
+
+.notification-filter-row::-webkit-scrollbar {
+  display: none;
+}
+
+.notification-filter-row button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--muted);
+  background: var(--panel-bg);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.notification-filter-row small {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 10px;
+}
+
+.notification-filter-row button:hover,
+.notification-filter-row .notification-filter-active {
+  border-color: var(--ink);
+  color: var(--ink);
+  background: var(--surface-strong);
 }
 
 .notification-item {
@@ -1840,6 +1891,92 @@ img {
   line-height: 1.5;
 }
 
+.channel-owner-console {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.channel-owner-console-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.channel-owner-console-header h2,
+.channel-owner-console-header p {
+  margin: 0;
+}
+
+.channel-owner-console-header p {
+  margin-top: 5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.channel-owner-menu {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.channel-owner-menu button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 12px;
+  color: var(--muted);
+  background: var(--panel-bg);
+  cursor: pointer;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.channel-owner-menu button:hover,
+.channel-owner-menu button.active {
+  border-color: var(--ink);
+  color: var(--ink);
+  background: var(--surface-strong);
+}
+
+.channel-owner-panel {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.channel-owner-status {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.channel-owner-status div {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+}
+
+.channel-owner-status strong {
+  color: var(--ink);
+  font-size: 24px;
+}
+
+.channel-owner-status span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .channel-edit-form {
   display: grid;
   gap: 12px;
@@ -3064,8 +3201,14 @@ img {
 
   .channel-home-setting-grid,
   .channel-featured-grid,
-  .channel-info-grid {
+  .channel-info-grid,
+  .channel-owner-console-header,
+  .channel-owner-status {
     grid-template-columns: 1fr;
+  }
+
+  .channel-owner-menu {
+    justify-content: flex-start;
   }
 
   .comments-header {

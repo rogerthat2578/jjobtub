@@ -668,6 +668,15 @@ function toQuery(searchParams: URLSearchParams) {
 
 function notifyNotificationsRefresh() {
   window.dispatchEvent(new CustomEvent("jjobtub:notifications-refresh"));
+  try {
+    const message = { at: Date.now() };
+    const channel = new BroadcastChannel("jjobtub:notifications");
+    channel.postMessage(message);
+    channel.close();
+    localStorage.setItem("jjobtub:notifications-refresh", String(message.at));
+  } catch {
+    // Cross-tab refresh is best effort only.
+  }
 }
 
 function formatDuration(totalSeconds: number) {
