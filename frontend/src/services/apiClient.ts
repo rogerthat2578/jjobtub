@@ -356,6 +356,10 @@ export async function fetchNotifications() {
   };
 }
 
+export function notificationStreamUrl() {
+  return `${API_BASE_URL}/notifications/stream`;
+}
+
 export async function markNotificationRead(id: string) {
   await request<{ ok: boolean }>(`/notifications/${id}/read`, { method: "PATCH" });
 }

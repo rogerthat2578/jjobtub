@@ -7,6 +7,7 @@ import { ToastProvider } from "./components/ToastProvider";
 import { AuthPage } from "./routes/AuthPage";
 import { ChannelPage } from "./routes/ChannelPage";
 import { HomePage } from "./routes/HomePage";
+import { NotificationsPage } from "./routes/NotificationsPage";
 import { PersonalVideoListPage } from "./routes/PersonalVideoListPage";
 import { PlaylistDetailPage } from "./routes/PlaylistDetailPage";
 import { PlaylistLibraryPage } from "./routes/PlaylistLibraryPage";
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/login" element={<AuthPage mode="login" />} />
             <Route path="/register" element={<AuthPage mode="register" />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
             <Route
               path="/subscriptions"
               element={

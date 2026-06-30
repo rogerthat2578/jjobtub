@@ -1,5 +1,5 @@
-import { Controller, Delete, Get, Param, Patch, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Controller, Delete, Get, Param, Patch, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { NotificationsService } from './notifications.service';
 
 @Controller('notifications')
@@ -9,6 +9,11 @@ export class NotificationsController {
   @Get()
   listNotifications(@Req() request: Request) {
     return this.notificationsService.listNotifications(request);
+  }
+
+  @Get('stream')
+  streamNotifications(@Req() request: Request, @Res() response: Response) {
+    return this.notificationsService.streamNotifications(request, response);
   }
 
   @Patch('read-all')

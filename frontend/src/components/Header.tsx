@@ -19,7 +19,14 @@ import {
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { deleteAllNotifications, deleteNotification, fetchNotifications, markAllNotificationsRead, markNotificationRead } from "../services/apiClient";
+import {
+  deleteAllNotifications,
+  deleteNotification,
+  fetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  notificationStreamUrl,
+} from "../services/apiClient";
 import type { AppNotification } from "../types/notification";
 import { useToast } from "./ToastProvider";
 
@@ -92,6 +99,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     window.addEventListener("storage", handleNotificationStorageRefresh);
     const intervalId = window.setInterval(refresh, 20000);
     const broadcastChannel = createNotificationBroadcastChannel(refresh);
+    const notificationStream = createNotificationEventSource(refresh);
 
     return () => {
       window.removeEventListener("focus", refresh);
@@ -99,6 +107,7 @@ export function Header({ onMenuClick }: HeaderProps) {
       window.removeEventListener("storage", handleNotificationStorageRefresh);
       window.clearInterval(intervalId);
       broadcastChannel?.close();
+      notificationStream?.close();
     };
   }, [user]);
 
@@ -222,6 +231,9 @@ export function Header({ onMenuClick }: HeaderProps) {
               <div className="notification-popover">
                 <div className="notification-popover-header">
                   <strong>알림</strong>
+                  <Link to="/notifications" onClick={() => setIsNotificationOpen(false)}>
+                    전체 보기
+                  </Link>
                   <button type="button" onClick={handleReadAllNotifications} disabled={unreadCount === 0}>
                     모두 읽음
                   </button>
@@ -353,6 +365,22 @@ function createNotificationBroadcastChannel(refresh: () => void) {
     const channel = new BroadcastChannel("jjobtub:notifications");
     channel.onmessage = refresh;
     return channel;
+  } catch {
+    return null;
+  }
+}
+
+function createNotificationEventSource(refresh: () => void) {
+  if (typeof EventSource === "undefined") {
+    return null;
+  }
+  try {
+    const source = new EventSource(notificationStreamUrl(), { withCredentials: true });
+    source.addEventListener("notifications", refresh);
+    source.onerror = () => {
+      // Keep the existing polling fallback alive if the stream drops.
+    };
+    return source;
   } catch {
     return null;
   }

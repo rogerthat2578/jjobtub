@@ -241,7 +241,8 @@ img {
   border-bottom: 1px solid var(--border);
 }
 
-.notification-popover-header button {
+.notification-popover-header button,
+.notification-popover-header a {
   border: 0;
   color: var(--accent);
   background: transparent;
@@ -394,6 +395,74 @@ img {
 .notification-empty {
   margin: 0;
   padding: 18px 14px;
+}
+
+.notifications-page {
+  max-width: 940px;
+}
+
+.notifications-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.notifications-filter-panel {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.notifications-list-page {
+  display: grid;
+  gap: 10px;
+}
+
+.notifications-page-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 32px;
+  gap: 12px;
+  align-items: center;
+  min-height: 74px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+}
+
+.notifications-page-item-unread {
+  border-color: rgba(225, 29, 72, 0.34);
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel-bg));
+}
+
+.notifications-page-icon {
+  width: 42px;
+  height: 42px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--surface);
+}
+
+.notifications-page-item div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.notifications-page-item a,
+.notifications-page-item strong {
+  color: var(--ink);
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.notifications-page-item small {
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .account-popover {
@@ -2101,6 +2170,35 @@ img {
   background: #ffffff;
 }
 
+.channel-featured-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.channel-featured-preview div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+}
+
+.channel-featured-preview small,
+.channel-featured-preview span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.channel-featured-preview strong {
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .channel-section-order,
 .comment-sort-tabs,
 .pagination-row {
@@ -3201,6 +3299,7 @@ img {
 
   .channel-home-setting-grid,
   .channel-featured-grid,
+  .channel-featured-preview,
   .channel-info-grid,
   .channel-owner-console-header,
   .channel-owner-status {

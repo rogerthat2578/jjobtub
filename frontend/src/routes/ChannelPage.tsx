@@ -374,6 +374,18 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
                   </select>
                 </label>
               </div>
+              <div className="channel-featured-preview" aria-label="선택된 대표 콘텐츠 미리보기">
+                <div>
+                  <small>대표 영상 미리보기</small>
+                  <strong>{featuredVideo?.title ?? "표시할 영상 없음"}</strong>
+                  <span>{featuredVideoId ? "직접 선택됨" : "최신 영상 자동 선택"}</span>
+                </div>
+                <div>
+                  <small>대표 재생목록 미리보기</small>
+                  <strong>{featuredPlaylist?.name ?? "표시할 재생목록 없음"}</strong>
+                  <span>{featuredPlaylistId ? "직접 선택됨" : "최근 재생목록 자동 선택"}</span>
+                </div>
+              </div>
               <div className="channel-section-order" aria-label="채널 홈 섹션 순서">
                 {(["featured", "videos", "playlists"] as HomeSection[]).map((section) => (
                   <button
