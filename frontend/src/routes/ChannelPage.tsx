@@ -1,6 +1,6 @@
 import { Bell, Image, LayoutDashboard, Pencil, Settings } from "lucide-react";
 import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
-import { Navigate, useParams } from "react-router-dom";
+import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { PlaylistCard } from "../components/PlaylistCard";
 import { useToast } from "../components/ToastProvider";
@@ -33,14 +33,23 @@ const DEFAULT_AVATAR =
 const DEFAULT_BANNER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='320' viewBox='0 0 1200 320'%3E%3Crect width='1200' height='320' fill='%23f4f2ef'/%3E%3Cpath d='M0 238c126-58 244-58 354 0s233 58 368 0 294-58 478 0v82H0z' fill='%23d6d3d1'/%3E%3C/svg%3E";
 
+function normalizeChannelTab(tab: string | null): ChannelTab {
+  if (tab === "videos" || tab === "playlists" || tab === "about") {
+    return tab;
+  }
+
+  return "home";
+}
+
 export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const { channelId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, isLoading } = useAuth();
   const { showToast } = useToast();
   const [channel, setChannel] = useState<Channel | null>(null);
   const [videos, setVideos] = useState<VideoListResult>({ videos: [], channelsById: {} });
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [activeTab, setActiveTab] = useState<ChannelTab>("home");
+  const activeTab = normalizeChannelTab(searchParams.get("tab"));
   const [notFound, setNotFound] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -80,11 +89,20 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
         setHomeSectionOrder(normalizeHomeSections(channelResult.homeSectionOrder));
         setVideos(videoResult);
         setPlaylists(playlistResult);
-        setActiveTab("home");
         setNotFound(false);
       })
       .catch(() => setNotFound(true));
   }, [channelId, isLoading, isMine, user?.channelId]);
+
+  function setActiveTab(tab: ChannelTab) {
+    const nextParams = new URLSearchParams(searchParams);
+    if (tab === "home") {
+      nextParams.delete("tab");
+    } else {
+      nextParams.set("tab", tab);
+    }
+    setSearchParams(nextParams, { replace: false });
+  }
 
   async function handleChannelSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
