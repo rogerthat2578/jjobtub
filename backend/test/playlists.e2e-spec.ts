@@ -74,6 +74,7 @@ describe('Playlists API', () => {
     },
     playlistItem: {
       count: jest.fn().mockResolvedValue(1),
+      findUnique: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue([
         { id: 'item-1', playlistId: customPlaylist.id, videoId: 'video-1', position: 0 },
         { id: 'item-2', playlistId: customPlaylist.id, videoId: 'video-2', position: 1 },
@@ -85,6 +86,9 @@ describe('Playlists API', () => {
     $transaction: jest.fn((operations) => Promise.all(operations)),
     video: {
       findUnique: jest.fn().mockResolvedValue(video),
+    },
+    notification: {
+      create: jest.fn().mockResolvedValue({ id: 'notification-playlist' }),
     },
     session: {
       findUnique: jest.fn().mockResolvedValue({
@@ -105,6 +109,7 @@ describe('Playlists API', () => {
     prisma.playlist.findUnique.mockResolvedValue(customPlaylist);
     prisma.playlist.create.mockResolvedValue(customPlaylist);
     prisma.playlistItem.count.mockResolvedValue(1);
+    prisma.playlistItem.findUnique.mockResolvedValue(null);
     prisma.playlistItem.findMany.mockResolvedValue([
       { id: 'item-1', playlistId: customPlaylist.id, videoId: 'video-1', position: 0 },
       { id: 'item-2', playlistId: customPlaylist.id, videoId: 'video-2', position: 1 },
@@ -114,6 +119,7 @@ describe('Playlists API', () => {
     prisma.playlistItem.update.mockResolvedValue({});
     prisma.$transaction.mockImplementation((operations) => Promise.all(operations));
     prisma.video.findUnique.mockResolvedValue(video);
+    prisma.notification.create.mockResolvedValue({ id: 'notification-playlist' });
     prisma.session.findUnique.mockResolvedValue({
       id: 'session-1',
       userId: user.id,
@@ -166,6 +172,14 @@ describe('Playlists API', () => {
       data: { ownerId: user.id, name: '운동 영상', kind: 'CUSTOM' },
       include: { items: true },
     });
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: {
+        userId: user.id,
+        type: 'PLAYLIST',
+        message: `"${customPlaylist.name}" 재생목록을 만들었습니다.`,
+        linkUrl: `/library/${customPlaylist.id}`,
+      },
+    });
   });
 
   it('saves a video to a selected playlist', async () => {
@@ -181,6 +195,26 @@ describe('Playlists API', () => {
       create: { playlistId: customPlaylist.id, videoId: video.id, position: 1 },
       update: {},
     });
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: {
+        userId: user.id,
+        type: 'PLAYLIST',
+        message: `"${video.title}" 영상을 "${customPlaylist.name}" 재생목록에 저장했습니다.`,
+        linkUrl: `/watch/${video.id}?playlist=${customPlaylist.id}`,
+      },
+    });
+  });
+
+  it('does not create a duplicate notification when a video is already saved', async () => {
+    prisma.playlistItem.findUnique.mockResolvedValue({ id: 'item-existing' });
+
+    await request(app.getHttpServer())
+      .post('/api/playlists/playlist-custom/items')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .send({ videoId: video.id })
+      .expect(201);
+
+    expect(prisma.notification.create).not.toHaveBeenCalled();
   });
 
   it('removes a video from a selected playlist', async () => {
@@ -192,6 +226,14 @@ describe('Playlists API', () => {
     expect(response.body).toEqual({ saved: false });
     expect(prisma.playlistItem.delete).toHaveBeenCalledWith({
       where: { playlistId_videoId: { playlistId: customPlaylist.id, videoId: video.id } },
+    });
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: {
+        userId: user.id,
+        type: 'PLAYLIST',
+        message: `"${customPlaylist.name}" 재생목록에서 영상을 제거했습니다.`,
+        linkUrl: `/library/${customPlaylist.id}`,
+      },
     });
   });
 

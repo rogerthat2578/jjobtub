@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException,
 import type { Playlist, PlaylistItem, Video, Channel } from '@prisma/client';
 import type { Request } from 'express';
 import { AuthService } from '../auth/auth.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { toVideoListItem } from '../videos/video-response';
 
@@ -18,6 +19,7 @@ export class PlaylistsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listPlaylists(request: Request) {
@@ -47,6 +49,12 @@ export class PlaylistsService {
     const playlist = await this.prisma.playlist.create({
       data: { ownerId: user.id, name: trimmedName, kind: 'CUSTOM' },
       include: { items: true },
+    });
+    await this.notifications.createNotification({
+      userId: user.id,
+      type: 'PLAYLIST',
+      message: `"${playlist.name}" 재생목록을 만들었습니다.`,
+      linkUrl: `/library/${playlist.id}`,
     });
 
     return toPlaylistResponse(playlist);
@@ -83,13 +91,25 @@ export class PlaylistsService {
   async addPlaylistItem(id: string, videoId: string, request: Request) {
     const user = await this.requireCurrentUser(request);
     const playlist = await this.assertPlaylistOwner(id, user.id);
-    await this.ensureVideoExists(videoId);
+    const video = await this.ensureVideoExists(videoId);
+    const existingItem = await this.prisma.playlistItem.findUnique({
+      where: { playlistId_videoId: { playlistId: playlist.id, videoId } },
+      select: { id: true },
+    });
     const position = await this.prisma.playlistItem.count({ where: { playlistId: playlist.id } });
     await this.prisma.playlistItem.upsert({
       where: { playlistId_videoId: { playlistId: playlist.id, videoId } },
       create: { playlistId: playlist.id, videoId, position },
       update: {},
     });
+    if (!existingItem) {
+      await this.notifications.createNotification({
+        userId: user.id,
+        type: 'PLAYLIST',
+        message: `"${video.title}" 영상을 "${playlist.name}" 재생목록에 저장했습니다.`,
+        linkUrl: `/watch/${videoId}?playlist=${playlist.id}`,
+      });
+    }
 
     return { saved: true };
   }
@@ -133,6 +153,12 @@ export class PlaylistsService {
     await this.prisma.playlistItem.delete({
       where: { playlistId_videoId: { playlistId: playlist.id, videoId } },
     });
+    await this.notifications.createNotification({
+      userId: user.id,
+      type: 'PLAYLIST',
+      message: `"${playlist.name}" 재생목록에서 영상을 제거했습니다.`,
+      linkUrl: `/library/${playlist.id}`,
+    });
 
     return { saved: false };
   }
@@ -166,6 +192,7 @@ export class PlaylistsService {
     if (!video) {
       throw new NotFoundException('Video not found');
     }
+    return video;
   }
 
   private async requireCurrentUser(request: Request) {

@@ -117,7 +117,7 @@ ERD 문서: [docs/database-erd.md](docs/database-erd.md)
 - `ChannelSubscription`: 채널 구독
 - `Comment`: 댓글과 대댓글
 - `CommentLike`: 댓글 좋아요
-- `Notification`: 댓글/대댓글/좋아요/구독 알림
+- `Notification`: 댓글/대댓글/좋아요/구독/재생목록 알림
 
 ## 시작 방법
 
@@ -309,7 +309,7 @@ npm run frontend:build
   - 미니 플레이어 드래그/리사이즈/작은 화면 확인
 - 알림 UX 고도화
   - 채널/내 채널 탭 딥링크는 완료: `/channel/:id?tab=playlists`, `/my-channel?tab=about`처럼 직접 진입 가능
-  - 재생목록 생성/저장 같은 재생목록 이벤트 알림 생성 및 링크 연동
+  - 재생목록 생성/저장/제거 알림 생성 및 링크 연동 완료
   - 알림 아카이브 보관 기간/전체 조회 정책 정리
 - 채널 관리 고도화
   - 채널 배너 모바일 crop/position 설정

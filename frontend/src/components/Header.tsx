@@ -3,6 +3,7 @@ import {
   Heart,
   LogIn,
   LogOut,
+  ListPlus,
   Menu,
   MessageCircle,
   Reply,
@@ -399,7 +400,7 @@ function filterNotifications(notifications: AppNotification[], filter: Notificat
 function buildNotificationFilters(notifications: AppNotification[], unreadCount: number): Array<{ value: NotificationFilter; label: string; count: number }> {
   const typeCounts = notifications.reduce<Record<AppNotification["type"], number>>(
     (counts, notification) => ({ ...counts, [notification.type]: counts[notification.type] + 1 }),
-    { COMMENT: 0, REPLY: 0, COMMENT_LIKE: 0, VIDEO_LIKE: 0, SUBSCRIPTION: 0 },
+    { COMMENT: 0, REPLY: 0, COMMENT_LIKE: 0, VIDEO_LIKE: 0, SUBSCRIPTION: 0, PLAYLIST: 0 },
   );
 
   const filters: Array<{ value: NotificationFilter; label: string; count: number }> = [
@@ -410,6 +411,7 @@ function buildNotificationFilters(notifications: AppNotification[], unreadCount:
     { value: "COMMENT_LIKE", label: "댓글 좋아요", count: typeCounts.COMMENT_LIKE },
     { value: "VIDEO_LIKE", label: "영상 좋아요", count: typeCounts.VIDEO_LIKE },
     { value: "SUBSCRIPTION", label: "구독", count: typeCounts.SUBSCRIPTION },
+    { value: "PLAYLIST", label: "재생목록", count: typeCounts.PLAYLIST },
   ];
 
   return filters.filter((filter) => filter.value === "all" || filter.value === "unread" || filter.count > 0);
@@ -424,6 +426,9 @@ function renderNotificationIcon(type: AppNotification["type"]) {
   }
   if (type === "SUBSCRIPTION") {
     return <UserRoundPlus size={15} />;
+  }
+  if (type === "PLAYLIST") {
+    return <ListPlus size={15} />;
   }
   return <MessageCircle size={15} />;
 }
