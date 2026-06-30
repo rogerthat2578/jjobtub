@@ -5,6 +5,15 @@ import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 type NotificationStreamListener = () => void;
+type NotificationFilter = NotificationType | 'unread' | 'read' | 'all';
+
+const DEFAULT_NOTIFICATION_LIMIT = 30;
+const MAX_NOTIFICATION_LIMIT = 50;
+const NOTIFICATION_ARCHIVE_POLICY = {
+  retentionDays: null,
+  deletion: 'manual',
+  maxPageSize: MAX_NOTIFICATION_LIMIT,
+};
 
 @Injectable()
 export class NotificationsService {
@@ -15,19 +24,43 @@ export class NotificationsService {
     private readonly authService: AuthService,
   ) {}
 
-  async listNotifications(request: Pick<Request, 'headers'>) {
+  async listNotifications(
+    request: Pick<Request, 'headers'>,
+    options: { page?: string; limit?: string; filter?: string } = {},
+  ) {
     const user = await this.requireCurrentUser(request);
+    const page = normalizePositiveInt(options.page, 1);
+    const limit = Math.min(normalizePositiveInt(options.limit, DEFAULT_NOTIFICATION_LIMIT), MAX_NOTIFICATION_LIMIT);
+    const filter = normalizeNotificationFilter(options.filter);
+    const where = {
+      userId: user.id,
+      ...(filter === 'unread' ? { readAt: null } : {}),
+      ...(filter === 'read' ? { readAt: { not: null } } : {}),
+      ...(isNotificationType(filter) ? { type: filter } : {}),
+    };
     const notifications = await this.prisma.notification.findMany({
-      where: { userId: user.id },
+      where,
       orderBy: { createdAt: 'desc' },
-      take: 30,
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    const totalCount = await this.prisma.notification.count({ where });
     const unreadCount = await this.prisma.notification.count({
       where: { userId: user.id, readAt: null },
     });
+    const totalPages = Math.max(1, Math.ceil(totalCount / limit));
 
     return {
       unreadCount,
+      totalCount,
+      pageInfo: {
+        page,
+        limit,
+        totalPages,
+        hasPreviousPage: page > 1,
+        hasNextPage: page < totalPages,
+      },
+      archivePolicy: NOTIFICATION_ARCHIVE_POLICY,
       items: notifications.map((notification) => ({
         id: notification.id,
         type: notification.type,
@@ -167,4 +200,26 @@ export class NotificationsService {
     }
     return user;
   }
+}
+
+function normalizePositiveInt(value: string | undefined, fallback: number) {
+  const parsed = Number.parseInt(value ?? '', 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function normalizeNotificationFilter(value: string | undefined): NotificationFilter {
+  if (value === 'unread' || value === 'read') {
+    return value;
+  }
+  if (isNotificationType(value)) {
+    return value;
+  }
+  return 'all';
+}
+
+function isNotificationType(value: string | undefined): value is NotificationType {
+  return value === 'COMMENT' || value === 'REPLY' || value === 'COMMENT_LIKE' || value === 'VIDEO_LIKE' || value === 'SUBSCRIPTION' || value === 'PLAYLIST';
 }

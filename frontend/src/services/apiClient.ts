@@ -106,6 +106,20 @@ type ApiNotification = {
   createdAt: string;
 };
 
+type ApiNotificationPageInfo = {
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+};
+
+type ApiNotificationArchivePolicy = {
+  retentionDays: number | null;
+  deletion: "manual";
+  maxPageSize: number;
+};
+
 type ApiUser = {
   id: string;
   email: string;
@@ -348,10 +362,30 @@ export async function logout() {
   await request<{ ok: boolean }>("/auth/logout", { method: "POST" });
 }
 
-export async function fetchNotifications() {
-  const data = await request<{ unreadCount: number; items: ApiNotification[] }>("/notifications");
+export async function fetchNotifications(options: { page?: number; limit?: number; filter?: string } = {}) {
+  const params = new URLSearchParams();
+  if (options.page) {
+    params.set("page", String(options.page));
+  }
+  if (options.limit) {
+    params.set("limit", String(options.limit));
+  }
+  if (options.filter && options.filter !== "all") {
+    params.set("filter", options.filter);
+  }
+  const query = params.toString();
+  const data = await request<{
+    unreadCount: number;
+    totalCount: number;
+    pageInfo: ApiNotificationPageInfo;
+    archivePolicy: ApiNotificationArchivePolicy;
+    items: ApiNotification[];
+  }>(`/notifications${query ? `?${query}` : ""}`);
   return {
     unreadCount: data.unreadCount,
+    totalCount: data.totalCount,
+    pageInfo: data.pageInfo,
+    archivePolicy: data.archivePolicy,
     items: data.items.map(mapNotification),
   };
 }

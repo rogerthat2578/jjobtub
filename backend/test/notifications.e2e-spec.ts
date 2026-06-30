@@ -80,10 +80,43 @@ describe('Notifications API', () => {
     const response = await request(app.getHttpServer()).get('/api/notifications').set('Cookie', 'jjobtub_session=session-token').expect(200);
 
     expect(response.body.unreadCount).toBe(1);
+    expect(response.body.totalCount).toBe(1);
+    expect(response.body.pageInfo).toMatchObject({
+      page: 1,
+      limit: 30,
+      totalPages: 1,
+      hasPreviousPage: false,
+      hasNextPage: false,
+    });
+    expect(response.body.archivePolicy).toMatchObject({
+      retentionDays: null,
+      deletion: 'manual',
+      maxPageSize: 50,
+    });
     expect(response.body.items[0]).toMatchObject({
       id: 'notification-1',
       linkUrl: '/watch/video-1?comment=comment-1',
       readAt: null,
+    });
+    expect(prisma.notification.findMany).toHaveBeenCalledWith({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      skip: 0,
+      take: 30,
+    });
+  });
+
+  it('paginates and filters notification archive queries', async () => {
+    await request(app.getHttpServer())
+      .get('/api/notifications?page=2&limit=10&filter=PLAYLIST')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(200);
+
+    expect(prisma.notification.findMany).toHaveBeenCalledWith({
+      where: { userId: user.id, type: 'PLAYLIST' },
+      orderBy: { createdAt: 'desc' },
+      skip: 10,
+      take: 10,
     });
   });
 

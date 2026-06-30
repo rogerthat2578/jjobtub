@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, Param, Patch, Req, Res } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Patch, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { NotificationsService } from './notifications.service';
 
@@ -7,8 +7,8 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
-  listNotifications(@Req() request: Request) {
-    return this.notificationsService.listNotifications(request);
+  listNotifications(@Req() request: Request, @Query('page') page?: string, @Query('limit') limit?: string, @Query('filter') filter?: string) {
+    return this.notificationsService.listNotifications(request, { page, limit, filter });
   }
 
   @Get('stream')

@@ -408,6 +408,34 @@ img {
   gap: 8px;
 }
 
+.archive-policy-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.archive-policy-panel strong {
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.archive-policy-panel span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--surface-strong);
+}
+
 .notifications-filter-panel {
   width: 100%;
   border: 1px solid var(--border);
@@ -2230,6 +2258,13 @@ img {
 
 .pagination-row {
   justify-content: center;
+}
+
+.notification-pagination span {
+  min-width: 72px;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 800;
 }
 
 .pagination-row button:disabled {
