@@ -1,4 +1,4 @@
-import { Bell, Image, LayoutDashboard, Pencil, Settings } from "lucide-react";
+﻿import { Bell, Settings, VideoIcon } from "lucide-react";
 import { type CSSProperties, type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -26,7 +26,6 @@ type ChannelPageProps = {
 
 type ChannelTab = "home" | "videos" | "playlists" | "about";
 type HomeSection = "featured" | "videos" | "playlists";
-type ChannelManagementPanel = "profile" | "home" | "status";
 type BannerMobilePosition = "left" | "center" | "right";
 type ChannelVideoFilter = "all" | "public" | "private" | "processing" | "failed" | "draft";
 
@@ -42,6 +41,7 @@ function normalizeChannelTab(tab: string | null): ChannelTab {
 
   return "home";
 }
+
 
 export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const { channelId } = useParams();
@@ -66,7 +66,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const [featuredVideoId, setFeaturedVideoId] = useState("");
   const [featuredPlaylistId, setFeaturedPlaylistId] = useState("");
   const [homeSectionOrder, setHomeSectionOrder] = useState<HomeSection[]>(["featured", "videos", "playlists"]);
-  const [activeManagementPanel, setActiveManagementPanel] = useState<ChannelManagementPanel>("profile");
+  const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
   const [videoFilter, setVideoFilter] = useState<ChannelVideoFilter>("all");
 
   useEffect(() => {
@@ -255,17 +255,25 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
               {channel.handle} · 구독자 {channel.subscribers}명 · 영상 {videoCount.toLocaleString()}개 · 가입일 {channel.joinedAt ?? "-"}
             </p>
             <p>{channel.description || "채널 설명이 아직 없습니다."}</p>
+            {canManageChannel && (
+              <div className="channel-owner-actions">
+                <button className="pill-button" type="button" onClick={() => setActiveTab("videos")}>
+                  <VideoIcon size={16} />
+                  동영상 관리
+                </button>
+              </div>
+            )}
           </div>
           {canManageChannel ? (
             <button
               className="subscribe-button"
               type="button"
               onClick={() => {
-                setActiveManagementPanel("profile");
+                setIsCustomizationOpen((isOpen) => !isOpen);
               }}
             >
               <Settings size={17} />
-              관리 메뉴
+              채널 맞춤설정
             </button>
           ) : (
             <button
@@ -282,39 +290,16 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
         </div>
       </section>
 
-      {canManageChannel && (
+      {canManageChannel && isCustomizationOpen && (
         <section className="channel-owner-console" aria-label="채널 관리">
           <div className="channel-owner-console-header">
             <div>
-              <h2>채널 관리</h2>
-              <p>채널 소유자에게만 보이는 관리 영역입니다.</p>
-            </div>
-            <div className="channel-owner-menu" aria-label="채널 관리 메뉴">
-              {([
-                { value: "profile", label: "채널 정보", icon: Pencil },
-                { value: "home", label: "홈 구성", icon: LayoutDashboard },
-                { value: "status", label: "상태 요약", icon: Image },
-              ] as const).map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    className={activeManagementPanel === item.value ? "active" : ""}
-                    key={item.value}
-                    type="button"
-                    onClick={() => {
-                      setActiveManagementPanel(item.value);
-                    }}
-                  >
-                    <Icon size={17} />
-                    {item.label}
-                  </button>
-                );
-              })}
+              <h2>채널 맞춤설정</h2>
+              <p>채널 이름, 설명, 이미지와 모바일 배너 표시 위치를 수정합니다.</p>
             </div>
           </div>
 
-          {activeManagementPanel === "profile" && (
-            <form className="channel-edit-form channel-owner-panel" onSubmit={handleChannelSubmit}>
+          <form className="channel-edit-form channel-owner-panel" onSubmit={handleChannelSubmit}>
               <label>
                 <span>채널 이름</span>
                 <input value={editName} onChange={(event) => setEditName(event.target.value)} maxLength={80} />
@@ -389,11 +374,9 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
                   {isSaving ? "저장 중" : "채널 정보 저장"}
                 </button>
               </div>
-            </form>
-          )}
+          </form>
 
-          {activeManagementPanel === "home" && (
-            <form className="channel-home-settings channel-owner-panel" onSubmit={handleHomeSettingsSubmit}>
+          <form className="channel-home-settings channel-owner-panel" onSubmit={handleHomeSettingsSubmit}>
               <div>
                 <h2>홈 구성</h2>
                 <p>대표 영상과 재생목록을 고르고 채널 홈의 표시 순서를 정합니다.</p>
@@ -450,25 +433,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
               <button className="primary-button" type="submit" disabled={isSavingHome}>
                 {isSavingHome ? "저장 중" : "홈 구성 저장"}
               </button>
-            </form>
-          )}
-
-          {activeManagementPanel === "status" && (
-            <div className="channel-owner-panel channel-owner-status">
-              <div>
-                <strong>{videos.videos.length.toLocaleString()}개</strong>
-                <span>관리 가능한 영상</span>
-              </div>
-              <div>
-                <strong>{playlists.length.toLocaleString()}개</strong>
-                <span>재생목록</span>
-              </div>
-              <div>
-                <strong>{videos.videos.filter((video) => video.status && video.status !== "READY").length.toLocaleString()}개</strong>
-                <span>처리 확인 필요</span>
-              </div>
-            </div>
-          )}
+          </form>
         </section>
       )}
 
@@ -708,3 +673,5 @@ function homeSectionLabel(section: HomeSection) {
   if (section === "videos") return "영상";
   return "재생목록";
 }
+
+

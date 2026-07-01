@@ -2048,6 +2048,13 @@ img {
   line-height: 1.5;
 }
 
+.channel-owner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
 .channel-owner-console {
   display: grid;
   gap: 14px;
@@ -2076,10 +2083,7 @@ img {
 }
 
 .channel-owner-menu {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
+  display: none;
 }
 
 .channel-owner-menu button {
