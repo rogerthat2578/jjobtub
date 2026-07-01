@@ -33,6 +33,7 @@ export class ChannelsService {
       description: channel.description,
       avatarUrl: channel.avatarUrl,
       bannerUrl: channel.bannerUrl,
+      bannerMobilePosition: normalizeBannerMobilePosition(channel.bannerMobilePosition),
       featuredVideoId: channel.featuredVideoId,
       featuredPlaylistId: channel.featuredPlaylistId,
       homeSectionOrder: channel.homeSectionOrder,
@@ -86,12 +87,13 @@ export class ChannelsService {
 
   async updateChannel(id: string, dto: UpdateChannelDto, request: Request) {
     const channel = await this.assertChannelOwner(id, request);
-    const data: { name?: string; description?: string; avatarUrl?: string | null; bannerUrl?: string | null } = {};
+    const data: { name?: string; description?: string; avatarUrl?: string | null; bannerUrl?: string | null; bannerMobilePosition?: string } = {};
 
     if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.description !== undefined) data.description = dto.description.trim();
     if (dto.avatarUrl !== undefined) data.avatarUrl = dto.avatarUrl.trim() || null;
     if (dto.bannerUrl !== undefined) data.bannerUrl = dto.bannerUrl.trim() || null;
+    if (dto.bannerMobilePosition !== undefined) data.bannerMobilePosition = normalizeBannerMobilePosition(dto.bannerMobilePosition);
 
     const updatedChannel = await this.prisma.channel.update({
       where: { id: channel.id },
@@ -104,6 +106,7 @@ export class ChannelsService {
       description: updatedChannel.description,
       avatarUrl: updatedChannel.avatarUrl,
       bannerUrl: updatedChannel.bannerUrl,
+      bannerMobilePosition: normalizeBannerMobilePosition(updatedChannel.bannerMobilePosition),
       featuredVideoId: updatedChannel.featuredVideoId,
       featuredPlaylistId: updatedChannel.featuredPlaylistId,
       homeSectionOrder: updatedChannel.homeSectionOrder,
@@ -141,6 +144,7 @@ export class ChannelsService {
       description: updatedChannel.description,
       avatarUrl: updatedChannel.avatarUrl,
       bannerUrl: updatedChannel.bannerUrl,
+      bannerMobilePosition: normalizeBannerMobilePosition(updatedChannel.bannerMobilePosition),
       featuredVideoId: updatedChannel.featuredVideoId,
       featuredPlaylistId: updatedChannel.featuredPlaylistId,
       homeSectionOrder: updatedChannel.homeSectionOrder,
@@ -174,6 +178,7 @@ export class ChannelsService {
       description: updatedChannel.description,
       avatarUrl: updatedChannel.avatarUrl,
       bannerUrl: updatedChannel.bannerUrl,
+      bannerMobilePosition: normalizeBannerMobilePosition(updatedChannel.bannerMobilePosition),
       featuredVideoId: updatedChannel.featuredVideoId,
       featuredPlaylistId: updatedChannel.featuredPlaylistId,
       homeSectionOrder: updatedChannel.homeSectionOrder,
@@ -286,6 +291,13 @@ function normalizeChannelAssetKind(kind: string): 'avatar' | 'banner' {
     return kind;
   }
   throw new BadRequestException('Unsupported channel asset kind');
+}
+
+function normalizeBannerMobilePosition(position?: string | null) {
+  if (position === 'left' || position === 'right') {
+    return position;
+  }
+  return 'center';
 }
 
 function imageExtension(mimeType?: string) {

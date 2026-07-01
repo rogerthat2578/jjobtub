@@ -1,5 +1,5 @@
 import { Bell, Image, LayoutDashboard, Pencil, Settings } from "lucide-react";
-import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
+import { type CSSProperties, type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { PlaylistCard } from "../components/PlaylistCard";
@@ -27,6 +27,8 @@ type ChannelPageProps = {
 type ChannelTab = "home" | "videos" | "playlists" | "about";
 type HomeSection = "featured" | "videos" | "playlists";
 type ChannelManagementPanel = "profile" | "home" | "status";
+type BannerMobilePosition = "left" | "center" | "right";
+type ChannelVideoFilter = "all" | "public" | "private" | "processing" | "failed" | "draft";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Crect width='160' height='160' fill='%23e7e5e4'/%3E%3Ccircle cx='80' cy='62' r='30' fill='%2378706a'/%3E%3Cpath d='M32 142c7-30 27-46 48-46s41 16 48 46' fill='%2378706a'/%3E%3C/svg%3E";
@@ -55,6 +57,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const [editDescription, setEditDescription] = useState("");
   const [editAvatarUrl, setEditAvatarUrl] = useState("");
   const [editBannerUrl, setEditBannerUrl] = useState("");
+  const [editBannerMobilePosition, setEditBannerMobilePosition] = useState<BannerMobilePosition>("center");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingHome, setIsSavingHome] = useState(false);
@@ -64,6 +67,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const [featuredPlaylistId, setFeaturedPlaylistId] = useState("");
   const [homeSectionOrder, setHomeSectionOrder] = useState<HomeSection[]>(["featured", "videos", "playlists"]);
   const [activeManagementPanel, setActiveManagementPanel] = useState<ChannelManagementPanel>("profile");
+  const [videoFilter, setVideoFilter] = useState<ChannelVideoFilter>("all");
 
   useEffect(() => {
     const targetChannelId = isMine ? user?.channelId : channelId;
@@ -84,6 +88,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
         setEditDescription(channelResult.description);
         setEditAvatarUrl(channelResult.avatarUrl);
         setEditBannerUrl(channelResult.bannerUrl);
+        setEditBannerMobilePosition(channelResult.bannerMobilePosition ?? "center");
         setFeaturedVideoId(channelResult.featuredVideoId ?? "");
         setFeaturedPlaylistId(channelResult.featuredPlaylistId ?? "");
         setHomeSectionOrder(normalizeHomeSections(channelResult.homeSectionOrder));
@@ -119,6 +124,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
         description: editDescription,
         avatarUrl: editAvatarUrl,
         bannerUrl: editBannerUrl,
+        bannerMobilePosition: editBannerMobilePosition,
       });
       setChannel({ ...updatedChannel, videoCount: channel.videoCount, joinedAt: channel.joinedAt });
       showToast("채널 정보가 저장되었습니다.", "success");
@@ -175,6 +181,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
       setChannel({ ...updatedChannel, videoCount: channel.videoCount, joinedAt: channel.joinedAt });
       setEditAvatarUrl(updatedChannel.avatarUrl);
       setEditBannerUrl(updatedChannel.bannerUrl);
+      setEditBannerMobilePosition(updatedChannel.bannerMobilePosition ?? "center");
       showToast(kind === "avatar" ? "채널 아바타를 업데이트했습니다." : "채널 배너를 업데이트했습니다.", "success");
     } catch {
       setChannel(previousChannel);
@@ -225,6 +232,8 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
   const canManageChannel = Boolean(user?.channelId && user.channelId === channel.id);
   const videoCount = channel.videoCount ?? videos.videos.length;
   const featuredVideos = videos.videos.slice(0, 6);
+  const filteredVideos = filterChannelVideos(videos.videos, videoFilter);
+  const videoFilterOptions = buildVideoFilterOptions(videos.videos);
   const featuredVideo = videos.videos.find((video) => video.id === (channel.featuredVideoId || featuredVideoId)) ?? videos.videos[0];
   const featuredPlaylist = playlists.find((playlist) => playlist.id === (channel.featuredPlaylistId || featuredPlaylistId)) ?? playlists[0];
   const orderedHomeSections = normalizeHomeSections(channel.homeSectionOrder ?? homeSectionOrder);
@@ -232,7 +241,12 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
   return (
     <div className="page-stack">
       <section className="channel-hero">
-        <img className="channel-banner" src={channel.bannerUrl || DEFAULT_BANNER} alt="" />
+        <img
+          className="channel-banner"
+          src={channel.bannerUrl || DEFAULT_BANNER}
+          alt=""
+          style={{ "--channel-banner-mobile-position": mobileBannerObjectPosition(channel.bannerMobilePosition) } as CSSProperties}
+        />
         <div className="channel-profile">
           <img src={channel.avatarUrl || DEFAULT_AVATAR} alt="" />
           <div className="channel-summary">
@@ -319,6 +333,21 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
                   <input value={editBannerUrl} onChange={(event) => setEditBannerUrl(event.target.value)} placeholder="https://..." />
                 </label>
               </div>
+              <div className="channel-banner-position-control" aria-label="모바일 배너 위치">
+                <span>모바일 배너 위치</span>
+                <div>
+                  {(["left", "center", "right"] as BannerMobilePosition[]).map((position) => (
+                    <button
+                      className={editBannerMobilePosition === position ? "active" : ""}
+                      key={position}
+                      type="button"
+                      onClick={() => setEditBannerMobilePosition(position)}
+                    >
+                      {bannerMobilePositionLabel(position)}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="channel-asset-upload-row">
                 <label className="pill-button">
                   <span>{uploadingAsset === "avatar" ? "아바타 업로드 중" : "아바타 파일"}</span>
@@ -351,6 +380,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
                     setEditDescription(channel.description);
                     setEditAvatarUrl(channel.avatarUrl);
                     setEditBannerUrl(channel.bannerUrl);
+                    setEditBannerMobilePosition(channel.bannerMobilePosition ?? "center");
                   }}
                 >
                   되돌리기
@@ -523,7 +553,28 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
             </div>
           </div>
           {videos.videos.length > 0 ? (
-            <VideoGrid videos={videos.videos} channelsById={videos.channelsById} renderActions={canManageChannel ? renderOwnerBadge : undefined} />
+            <>
+              {canManageChannel && (
+                <div className="channel-video-filter-row" aria-label="영상 상태 필터">
+                  {videoFilterOptions.map((option) => (
+                    <button
+                      className={videoFilter === option.value ? "active" : ""}
+                      key={option.value}
+                      type="button"
+                      onClick={() => setVideoFilter(option.value)}
+                    >
+                      <span>{option.label}</span>
+                      <small>{option.count}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {filteredVideos.length > 0 ? (
+                <VideoGrid videos={filteredVideos} channelsById={videos.channelsById} renderActions={canManageChannel ? renderOwnerBadge : undefined} />
+              ) : (
+                <p className="empty-state">선택한 상태에 해당하는 영상이 없습니다.</p>
+              )}
+            </>
           ) : (
             <p className="empty-state">아직 표시할 영상이 없습니다.</p>
           )}
@@ -590,6 +641,48 @@ function renderOwnerBadge(video: Video) {
   }
 
   return <span className="video-state-badge">{labels.join(" · ")}</span>;
+}
+
+function mobileBannerObjectPosition(position?: BannerMobilePosition) {
+  if (position === "left") return "20% center";
+  if (position === "right") return "80% center";
+  return "50% center";
+}
+
+function bannerMobilePositionLabel(position: BannerMobilePosition) {
+  if (position === "left") return "왼쪽";
+  if (position === "right") return "오른쪽";
+  return "가운데";
+}
+
+function filterChannelVideos(videos: Video[], filter: ChannelVideoFilter) {
+  if (filter === "public") {
+    return videos.filter((video) => video.visibility !== "PRIVATE" && (!video.status || video.status === "READY"));
+  }
+  if (filter === "private") {
+    return videos.filter((video) => video.visibility === "PRIVATE");
+  }
+  if (filter === "processing") {
+    return videos.filter((video) => video.status === "PROCESSING");
+  }
+  if (filter === "failed") {
+    return videos.filter((video) => video.status === "FAILED");
+  }
+  if (filter === "draft") {
+    return videos.filter((video) => video.status === "DRAFT");
+  }
+  return videos;
+}
+
+function buildVideoFilterOptions(videos: Video[]): Array<{ value: ChannelVideoFilter; label: string; count: number }> {
+  return [
+    { value: "all", label: "전체", count: videos.length },
+    { value: "public", label: "공개", count: filterChannelVideos(videos, "public").length },
+    { value: "private", label: "비공개", count: filterChannelVideos(videos, "private").length },
+    { value: "processing", label: "처리 중", count: filterChannelVideos(videos, "processing").length },
+    { value: "failed", label: "실패", count: filterChannelVideos(videos, "failed").length },
+    { value: "draft", label: "초안", count: filterChannelVideos(videos, "draft").length },
+  ];
 }
 
 function statusLabel(status: string) {

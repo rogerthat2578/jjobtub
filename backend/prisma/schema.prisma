@@ -86,6 +86,7 @@ model Channel {
   description     String
   avatarUrl       String?
   bannerUrl       String?
+  bannerMobilePosition String @default("center")
   featuredVideoId String?
   featuredPlaylistId String?
   homeSectionOrder String[] @default(["featured", "videos", "playlists"])

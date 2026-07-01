@@ -1965,6 +1965,66 @@ img {
   object-fit: cover;
 }
 
+.channel-banner-position-control {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.channel-banner-position-control > span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.channel-banner-position-control div,
+.channel-video-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.channel-banner-position-control button,
+.channel-video-filter-row button {
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: var(--panel-bg);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.channel-video-filter-row button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.channel-video-filter-row small {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 0.74rem;
+}
+
+.channel-banner-position-control button:hover,
+.channel-banner-position-control button.active,
+.channel-video-filter-row button:hover,
+.channel-video-filter-row button.active {
+  border-color: var(--ink);
+  color: var(--ink);
+  background: var(--surface-strong);
+}
+
 .channel-profile {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr) auto;
@@ -3381,6 +3441,7 @@ img {
 
   .channel-banner {
     height: 150px;
+    object-position: var(--channel-banner-mobile-position, center center);
   }
 
   .channel-tabs {

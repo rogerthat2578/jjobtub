@@ -4,6 +4,7 @@ export type Channel = {
   handle: string;
   avatarUrl: string;
   bannerUrl: string;
+  bannerMobilePosition?: "left" | "center" | "right";
   subscribers: string;
   subscribersCount?: number;
   videoCount?: number;

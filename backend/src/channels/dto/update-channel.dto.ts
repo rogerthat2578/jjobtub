@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
 
 export class UpdateChannelDto {
   @IsString()
@@ -20,4 +20,8 @@ export class UpdateChannelDto {
   @MaxLength(2048)
   @IsOptional()
   bannerUrl?: string;
+
+  @IsIn(['left', 'center', 'right'])
+  @IsOptional()
+  bannerMobilePosition?: string;
 }

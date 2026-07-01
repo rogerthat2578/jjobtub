@@ -11,6 +11,7 @@ const channel = {
   description: 'Channel endpoint tests',
   avatarUrl: null,
   bannerUrl: null,
+  bannerMobilePosition: 'center',
   featuredVideoId: null,
   featuredPlaylistId: null,
   homeSectionOrder: ['featured', 'videos', 'playlists'],
@@ -135,6 +136,7 @@ describe('Channels API', () => {
       name: 'Channel API',
       description: 'Channel endpoint tests',
       subscriberCount: 22,
+      bannerMobilePosition: 'center',
       videoCount: 2,
       createdAt: '2026-06-26T01:00:00.000Z',
     });
@@ -199,6 +201,7 @@ describe('Channels API', () => {
       description: 'Updated description',
       avatarUrl: 'https://example.com/avatar.png',
       bannerUrl: 'https://example.com/banner.png',
+      bannerMobilePosition: 'right',
     });
 
     const response = await request(app.getHttpServer())
@@ -209,6 +212,7 @@ describe('Channels API', () => {
         description: 'Updated description',
         avatarUrl: 'https://example.com/avatar.png',
         bannerUrl: 'https://example.com/banner.png',
+        bannerMobilePosition: 'right',
       })
       .expect(200);
 
@@ -218,6 +222,7 @@ describe('Channels API', () => {
       description: 'Updated description',
       avatarUrl: 'https://example.com/avatar.png',
       bannerUrl: 'https://example.com/banner.png',
+      bannerMobilePosition: 'right',
     });
     expect(prisma.channel.update).toHaveBeenCalledWith({
       where: { id: 'channel-1' },
@@ -226,6 +231,7 @@ describe('Channels API', () => {
         description: 'Updated description',
         avatarUrl: 'https://example.com/avatar.png',
         bannerUrl: 'https://example.com/banner.png',
+        bannerMobilePosition: 'right',
       },
     });
   });

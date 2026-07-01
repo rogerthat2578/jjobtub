@@ -25,6 +25,7 @@ type ApiChannel = {
   description?: string;
   avatarUrl?: string | null;
   bannerUrl?: string | null;
+  bannerMobilePosition?: "left" | "center" | "right";
   subscriberCount?: number;
   videoCount?: number;
   createdAt?: string;
@@ -501,7 +502,7 @@ export async function toggleChannelSubscription(channelId: string) {
 
 export async function updateChannel(
   channelId: string,
-  input: { name?: string; description?: string; avatarUrl?: string; bannerUrl?: string },
+  input: { name?: string; description?: string; avatarUrl?: string; bannerUrl?: string; bannerMobilePosition?: "left" | "center" | "right" },
 ) {
   return mapChannel(
     await request<ApiChannel>(`/channels/${channelId}`, {
@@ -630,6 +631,7 @@ function mapChannel(channel: ApiChannel): Channel {
     handle: `@${channel.name}`,
     avatarUrl: channel.avatarUrl ? absoluteApiUrl(channel.avatarUrl) : DEFAULT_AVATAR_URL,
     bannerUrl: channel.bannerUrl ? absoluteApiUrl(channel.bannerUrl) : "",
+    bannerMobilePosition: channel.bannerMobilePosition ?? "center",
     subscribers: (channel.subscriberCount ?? 0).toLocaleString(),
     subscribersCount: channel.subscriberCount,
     videoCount: channel.videoCount,
