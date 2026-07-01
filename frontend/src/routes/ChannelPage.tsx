@@ -1,4 +1,4 @@
-﻿import { Bell, Settings, VideoIcon } from "lucide-react";
+﻿import { Bell, Settings } from "lucide-react";
 import { type CSSProperties, type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -257,25 +257,14 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
             <p>{channel.description || "채널 설명이 아직 없습니다."}</p>
             {canManageChannel && (
               <div className="channel-owner-actions">
-                <button className="pill-button" type="button" onClick={() => setActiveTab("videos")}>
-                  <VideoIcon size={16} />
-                  동영상 관리
+                <button className="pill-button" type="button" onClick={() => setIsCustomizationOpen((isOpen) => !isOpen)}>
+                  <Settings size={16} />
+                  채널 맞춤설정
                 </button>
               </div>
             )}
           </div>
-          {canManageChannel ? (
-            <button
-              className="subscribe-button"
-              type="button"
-              onClick={() => {
-                setIsCustomizationOpen((isOpen) => !isOpen);
-              }}
-            >
-              <Settings size={17} />
-              채널 맞춤설정
-            </button>
-          ) : (
+          {!canManageChannel && (
             <button
               className={`subscribe-button ${channel.subscribedByMe ? "subscribe-button-active" : ""}`}
               type="button"
@@ -673,5 +662,3 @@ function homeSectionLabel(section: HomeSection) {
   if (section === "videos") return "영상";
   return "재생목록";
 }
-
-
