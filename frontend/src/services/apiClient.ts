@@ -68,6 +68,7 @@ type ApiPlaylist = {
   id: string;
   name: string;
   description?: string;
+  isPublic?: boolean;
   kind: "LIKED" | "CUSTOM";
   videoCount: number;
   videos: ApiVideoListItem[];
@@ -205,6 +206,22 @@ export async function createPlaylist(name: string) {
     body: JSON.stringify({ name }),
   });
   return mapPlaylist(data);
+}
+
+export async function updatePlaylist(
+  playlistId: string,
+  input: { name?: string; description?: string; isPublic?: boolean },
+) {
+  const data = await request<ApiPlaylist>(`/playlists/${playlistId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return mapPlaylist(data);
+}
+
+export async function deletePlaylist(playlistId: string) {
+  return request<{ deleted: boolean }>(`/playlists/${playlistId}`, { method: "DELETE" });
 }
 
 export async function addVideoToPlaylist(playlistId: string, videoId: string) {
@@ -660,6 +677,7 @@ function mapPlaylist(playlist: ApiPlaylist): Playlist {
     id: playlist.id,
     name: playlist.name,
     description: playlist.description ?? "",
+    isPublic: playlist.isPublic ?? (playlist.kind === "CUSTOM"),
     kind: playlist.kind,
     videoCount: playlist.videoCount,
     videos: playlist.videos.map(mapVideo),

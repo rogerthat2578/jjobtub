@@ -10,6 +10,7 @@ type PlaylistCardProps = {
 export function PlaylistCard({ playlist, onEmpty, manageTo }: PlaylistCardProps) {
   const firstVideo = playlist.videos[0];
   const playbackUrl = firstVideo ? `/watch/${firstVideo.id}?playlist=${playlist.id}` : "";
+  const visibilityLabel = playlist.kind === "LIKED" ? "비공개" : playlist.isPublic ? "공개" : "비공개";
 
   return (
     <article className="playlist-card">
@@ -33,7 +34,7 @@ export function PlaylistCard({ playlist, onEmpty, manageTo }: PlaylistCardProps)
           </button>
         )}
         <p>
-          {playlist.kind === "LIKED" ? "자동 재생목록" : "내 재생목록"} · {playlist.videoCount.toLocaleString()}개 영상
+          {playlist.kind === "LIKED" ? "자동 재생목록" : "내 재생목록"} · {visibilityLabel} · {playlist.videoCount.toLocaleString()}개 영상
         </p>
         {manageTo && (
           <Link className="text-button" to={manageTo}>

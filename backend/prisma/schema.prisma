@@ -130,6 +130,7 @@ model Playlist {
   owner     User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name      String
   description String        @default("")
+  isPublic  Boolean        @default(true)
   kind      PlaylistKind   @default(CUSTOM)
   items     PlaylistItem[]
   createdAt DateTime       @default(now())

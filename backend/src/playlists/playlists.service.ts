@@ -5,6 +5,7 @@ import { AuthService } from '../auth/auth.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { toVideoListItem } from '../videos/video-response';
+import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 
 const LIKED_PLAYLIST_NAME = '좋아요 표시한 재생 목록';
 
@@ -60,6 +61,50 @@ export class PlaylistsService {
     return toPlaylistResponse(playlist);
   }
 
+  async updatePlaylist(id: string, dto: UpdatePlaylistDto, request: Request) {
+    const user = await this.requireCurrentUser(request);
+    const playlist = await this.assertCustomPlaylistOwner(id, user.id);
+    const data: { name?: string; description?: string; isPublic?: boolean } = {};
+
+    if (dto.name !== undefined) {
+      const trimmedName = dto.name.trim();
+      if (!trimmedName) {
+        throw new BadRequestException('Playlist name is required');
+      }
+      data.name = trimmedName;
+    }
+    if (dto.description !== undefined) {
+      data.description = dto.description.trim();
+    }
+    if (dto.isPublic !== undefined) {
+      data.isPublic = dto.isPublic;
+    }
+
+    const updatedPlaylist = await this.prisma.playlist.update({
+      where: { id: playlist.id },
+      data,
+      include: {
+        items: {
+          include: { video: { include: { channel: true } } },
+          orderBy: [{ position: 'asc' }, { createdAt: 'desc' }],
+        },
+      },
+    });
+
+    return toPlaylistResponse(updatedPlaylist);
+  }
+
+  async deletePlaylist(id: string, request: Request) {
+    const user = await this.requireCurrentUser(request);
+    const playlist = await this.assertCustomPlaylistOwner(id, user.id);
+
+    await this.prisma.playlist.delete({
+      where: { id: playlist.id },
+    });
+
+    return { deleted: true };
+  }
+
   async listPlaylistVideos(id: string, request: Request, order: string = 'manual') {
     const user = await this.authService.getCurrentUser(request);
     const playlist = await this.prisma.playlist.findUnique({ where: { id } });
@@ -67,7 +112,7 @@ export class PlaylistsService {
       throw new NotFoundException('Playlist not found');
     }
     const isOwner = Boolean(user && playlist.ownerId === user.id);
-    if (!isOwner && playlist.kind !== 'CUSTOM') {
+    if (!isOwner && (playlist.kind !== 'CUSTOM' || !playlist.isPublic)) {
       throw new ForbiddenException('Only the playlist owner can view this playlist');
     }
     const playlistOrder = normalizePlaylistOrder(order);
@@ -172,7 +217,7 @@ export class PlaylistsService {
     }
 
     return this.prisma.playlist.create({
-      data: { ownerId: userId, name: LIKED_PLAYLIST_NAME, kind: 'LIKED' },
+      data: { ownerId: userId, name: LIKED_PLAYLIST_NAME, kind: 'LIKED', isPublic: false },
     });
   }
 
@@ -183,6 +228,14 @@ export class PlaylistsService {
     }
     if (playlist.ownerId !== userId) {
       throw new ForbiddenException('Only the playlist owner can manage this playlist');
+    }
+    return playlist;
+  }
+
+  private async assertCustomPlaylistOwner(id: string, userId: string) {
+    const playlist = await this.assertPlaylistOwner(id, userId);
+    if (playlist.kind !== 'CUSTOM') {
+      throw new BadRequestException('Only custom playlists can be managed this way');
     }
     return playlist;
   }
@@ -209,6 +262,8 @@ export function toPlaylistResponse(playlist: PlaylistWithItems) {
   return {
     id: playlist.id,
     name: playlist.name,
+    description: playlist.description,
+    isPublic: playlist.isPublic,
     kind: playlist.kind,
     videoCount: items.length,
     videos: items

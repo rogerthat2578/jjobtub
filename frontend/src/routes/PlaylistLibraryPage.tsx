@@ -36,7 +36,7 @@ export function PlaylistLibraryPage() {
       <section className="page-heading">
         <div>
           <h1>재생 목록</h1>
-          <p>좋아요 표시한 재생 목록과 직접 만든 재생목록을 관리합니다.</p>
+          <p>좋아요 표시한 재생목록과 직접 만든 재생목록을 관리합니다.</p>
         </div>
       </section>
 

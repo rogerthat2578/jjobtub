@@ -2571,6 +2571,103 @@ img {
   font-weight: 800;
 }
 
+.playlist-management-panel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 980px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.playlist-management-summary {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.playlist-management-summary strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.playlist-management-summary span {
+  width: fit-content;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--panel-bg);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.playlist-management-summary p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.playlist-management-actions,
+.playlist-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.playlist-edit-form {
+  display: grid;
+  gap: 14px;
+  max-width: 980px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+}
+
+.playlist-edit-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.playlist-edit-form input,
+.playlist-edit-form textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px 12px;
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+}
+
+.playlist-edit-form textarea {
+  min-height: 108px;
+  resize: vertical;
+}
+
+.playlist-visibility-toggle {
+  display: flex !important;
+  grid-template-columns: none;
+  align-items: center;
+  width: fit-content;
+  color: var(--ink) !important;
+}
+
+.playlist-visibility-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
 .playlist-detail-list {
   display: grid;
   gap: 10px;
@@ -3217,6 +3314,8 @@ img {
   .channel-edit-form textarea,
   .channel-home-setting-grid select,
   .playlist-create-form input,
+  .playlist-edit-form input,
+  .playlist-edit-form textarea,
   .upload-form input,
   .upload-form textarea,
   .upload-form select {
@@ -3258,6 +3357,15 @@ img {
 
   .playlist-queue-list {
     max-height: 420px;
+  }
+
+  .playlist-management-panel {
+    flex-direction: column;
+  }
+
+  .playlist-management-actions {
+    justify-content: flex-start;
+    width: 100%;
   }
 }
 
@@ -3441,6 +3549,15 @@ img {
     grid-column: 3;
     width: fit-content;
     justify-self: end;
+  }
+
+  .playlist-management-panel,
+  .playlist-edit-form {
+    padding: 14px;
+  }
+
+  .playlist-edit-actions {
+    justify-content: flex-start;
   }
 
   .channel-banner {

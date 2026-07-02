@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import type { Request } from 'express';
+import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { PlaylistsService } from './playlists.service';
 
 @Controller('playlists')
@@ -19,6 +20,16 @@ export class PlaylistsController {
   @Get(':id/videos')
   listPlaylistVideos(@Param('id') id: string, @Query('order') order: string | undefined, @Req() request: Request) {
     return this.playlistsService.listPlaylistVideos(id, request, order);
+  }
+
+  @Patch(':id')
+  updatePlaylist(@Param('id') id: string, @Body() dto: UpdatePlaylistDto, @Req() request: Request) {
+    return this.playlistsService.updatePlaylist(id, dto, request);
+  }
+
+  @Delete(':id')
+  deletePlaylist(@Param('id') id: string, @Req() request: Request) {
+    return this.playlistsService.deletePlaylist(id, request);
   }
 
   @Post(':id/items')

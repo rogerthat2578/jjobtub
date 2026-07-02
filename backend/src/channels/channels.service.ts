@@ -69,7 +69,7 @@ export class ChannelsService {
     }
 
     const playlists = await this.prisma.playlist.findMany({
-      where: { ownerId: channel.ownerId, kind: 'CUSTOM' },
+      where: { ownerId: channel.ownerId, kind: 'CUSTOM', isPublic: true },
       include: {
         items: {
           where: { video: { status: 'READY', visibility: 'PUBLIC' } },

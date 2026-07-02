@@ -43,6 +43,7 @@ const playlist = {
   ownerId: 'user-1',
   name: 'Frontend Playlist',
   description: 'A collection about frontend search',
+  isPublic: true,
   kind: 'CUSTOM',
   createdAt: new Date('2026-06-29T00:00:00.000Z'),
   updatedAt: new Date('2026-06-29T00:00:00.000Z'),
@@ -116,6 +117,8 @@ describe('Search API', () => {
     expect(prisma.playlist.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
+          kind: 'CUSTOM',
+          isPublic: true,
           OR: expect.arrayContaining([
             { description: { contains: 'frontend', mode: 'insensitive' } },
             { owner: { channels: { some: { name: { contains: 'frontend', mode: 'insensitive' } } } } },

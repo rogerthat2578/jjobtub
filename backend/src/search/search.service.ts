@@ -100,6 +100,7 @@ export class SearchService {
   private async searchPlaylists(search: string | undefined, page: number, limit: number) {
     const where = {
       kind: 'CUSTOM' as const,
+      isPublic: true,
       OR: search
         ? [
             { name: { contains: search, mode: 'insensitive' as const } },

@@ -1,14 +1,22 @@
-import { ArrowLeft, ListVideo, Play, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { ArrowLeft, ListVideo, Pencil, Play, Save, Trash2, X } from "lucide-react";
+import { type FormEvent, useEffect, useState } from "react";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { PlaylistOrderManager } from "../components/PlaylistOrderManager";
 import { useToast } from "../components/ToastProvider";
-import { fetchPlaylistVideos, removeVideoFromPlaylist, reorderPlaylistItems, type VideoListResult } from "../services/apiClient";
+import {
+  deletePlaylist,
+  fetchPlaylistVideos,
+  removeVideoFromPlaylist,
+  reorderPlaylistItems,
+  updatePlaylist,
+  type VideoListResult,
+} from "../services/apiClient";
 import type { Playlist } from "../types/playlist";
 
 export function PlaylistDetailPage() {
   const { playlistId } = useParams();
+  const navigate = useNavigate();
   const { user, isLoading } = useAuth();
   const { showToast } = useToast();
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
@@ -17,7 +25,13 @@ export function PlaylistDetailPage() {
   const [isFetching, setIsFetching] = useState(true);
   const [isManagingOrder, setIsManagingOrder] = useState(false);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [isSavingDetails, setIsSavingDetails] = useState(false);
+  const [isDeletingPlaylist, setIsDeletingPlaylist] = useState(false);
   const [removingVideoId, setRemovingVideoId] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editIsPublic, setEditIsPublic] = useState(true);
 
   useEffect(() => {
     if (!playlistId || !user) {
@@ -31,12 +45,68 @@ export function PlaylistDetailPage() {
       .then((result) => {
         setPlaylist({ ...result.playlist, videos: result.videos, videoCount: result.videos.length });
         setVideos({ videos: result.videos, channelsById: result.channelsById });
+        setEditName(result.playlist.name);
+        setEditDescription(result.playlist.description ?? "");
+        setEditIsPublic(result.playlist.isPublic);
       })
       .catch((fetchError) => {
         setError(toPlaylistErrorMessage(fetchError));
       })
       .finally(() => setIsFetching(false));
   }, [playlistId, user]);
+
+  async function handleSaveDetails(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!playlistId || !playlist || playlist.kind !== "CUSTOM" || isSavingDetails) {
+      return;
+    }
+
+    const nextName = editName.trim();
+    if (!nextName) {
+      showToast("재생목록 이름을 입력하세요.", "error");
+      return;
+    }
+
+    setIsSavingDetails(true);
+    try {
+      const updatedPlaylist = await updatePlaylist(playlistId, {
+        name: nextName,
+        description: editDescription,
+        isPublic: editIsPublic,
+      });
+      setPlaylist({ ...playlist, ...updatedPlaylist, videos: playlist.videos, videoCount: playlist.videoCount });
+      setEditName(updatedPlaylist.name);
+      setEditDescription(updatedPlaylist.description ?? "");
+      setEditIsPublic(updatedPlaylist.isPublic);
+      setIsEditingDetails(false);
+      showToast("재생목록 정보가 저장되었습니다.", "success");
+    } catch {
+      showToast("재생목록 정보를 저장하지 못했습니다.", "error");
+    } finally {
+      setIsSavingDetails(false);
+    }
+  }
+
+  async function handleDeletePlaylist() {
+    if (!playlistId || !playlist || playlist.kind !== "CUSTOM" || isDeletingPlaylist) {
+      return;
+    }
+
+    if (!window.confirm(`"${playlist.name}" 재생목록을 삭제할까요?`)) {
+      return;
+    }
+
+    setIsDeletingPlaylist(true);
+    try {
+      await deletePlaylist(playlistId);
+      showToast("재생목록이 삭제되었습니다.", "success");
+      navigate("/library", { replace: true });
+    } catch {
+      showToast("재생목록을 삭제하지 못했습니다.", "error");
+    } finally {
+      setIsDeletingPlaylist(false);
+    }
+  }
 
   async function handleSaveOrder(videoIds: string[]) {
     if (!playlistId || !playlist) {
@@ -69,7 +139,7 @@ export function PlaylistDetailPage() {
       const nextVideos = videos.videos.filter((video) => video.id !== videoId);
       setVideos((current) => ({ ...current, videos: nextVideos }));
       setPlaylist({ ...playlist, videos: nextVideos, videoCount: nextVideos.length });
-      showToast("재생목록에서 제거했습니다.", "success");
+      showToast("재생목록에서 제거되었습니다.", "success");
     } catch {
       showToast("재생목록에서 제거하지 못했습니다.", "error");
     } finally {
@@ -94,11 +164,13 @@ export function PlaylistDetailPage() {
       <div className="empty-panel">
         <p>{error || "재생목록을 찾을 수 없습니다."}</p>
         <Link className="pill-button" to="/library">
-          재생목록으로 돌아가기
+          재생 목록으로 돌아가기
         </Link>
       </div>
     );
   }
+
+  const isCustomPlaylist = playlist.kind === "CUSTOM";
 
   return (
     <div className="page-stack">
@@ -106,7 +178,7 @@ export function PlaylistDetailPage() {
         <div>
           <Link className="text-button" to="/library">
             <ArrowLeft size={15} />
-            재생목록
+            재생 목록
           </Link>
           <h1>{playlist.name}</h1>
           <p>{playlist.videoCount.toLocaleString()}개 영상 · 직접 정렬순으로 관리합니다.</p>
@@ -118,6 +190,52 @@ export function PlaylistDetailPage() {
           </Link>
         )}
       </section>
+
+      <section className="playlist-management-panel" aria-label="재생목록 정보">
+        <div className="playlist-management-summary">
+          <strong>{isCustomPlaylist ? "사용자 재생목록" : "좋아요 표시한 재생목록"}</strong>
+          <span>{isCustomPlaylist ? (playlist.isPublic ? "공개" : "비공개") : "비공개"}</span>
+          {playlist.description ? <p>{playlist.description}</p> : <p>설명이 아직 없습니다.</p>}
+        </div>
+        {isCustomPlaylist && (
+          <div className="playlist-management-actions">
+            <button className="pill-button" type="button" onClick={() => setIsEditingDetails((current) => !current)}>
+              {isEditingDetails ? <X size={17} /> : <Pencil size={17} />}
+              {isEditingDetails ? "닫기" : "정보 수정"}
+            </button>
+            <button className="pill-button danger-button" type="button" onClick={handleDeletePlaylist} disabled={isDeletingPlaylist}>
+              <Trash2 size={17} />
+              {isDeletingPlaylist ? "삭제 중" : "삭제"}
+            </button>
+          </div>
+        )}
+      </section>
+
+      {isCustomPlaylist && isEditingDetails && (
+        <form className="playlist-edit-form" onSubmit={handleSaveDetails}>
+          <label>
+            재생목록 이름
+            <input value={editName} onChange={(event) => setEditName(event.target.value)} maxLength={120} />
+          </label>
+          <label>
+            설명
+            <textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={1000} rows={4} />
+          </label>
+          <label className="playlist-visibility-toggle">
+            <input type="checkbox" checked={editIsPublic} onChange={(event) => setEditIsPublic(event.target.checked)} />
+            공개 재생목록으로 표시
+          </label>
+          <div className="playlist-edit-actions">
+            <button className="primary-button" type="submit" disabled={isSavingDetails}>
+              <Save size={17} />
+              {isSavingDetails ? "저장 중" : "저장"}
+            </button>
+            <button className="pill-button" type="button" onClick={() => setIsEditingDetails(false)} disabled={isSavingDetails}>
+              취소
+            </button>
+          </div>
+        </form>
+      )}
 
       {videos.videos.length > 1 && !isManagingOrder && (
         <button className="pill-button" type="button" onClick={() => setIsManagingOrder(true)}>
@@ -145,7 +263,9 @@ export function PlaylistDetailPage() {
                   <Link to={`/watch/${video.id}?playlist=${playlist.id}&order=manual`}>
                     <strong>{video.title}</strong>
                   </Link>
-                  <small>{channel?.name ?? "알 수 없는 채널"} · {video.views} · {video.uploadedAt}</small>
+                  <small>
+                    {channel?.name ?? "알 수 없는 채널"} · 조회수 {video.views.toLocaleString()}회 · {video.uploadedAt}
+                  </small>
                 </div>
                 <button
                   className="icon-button danger-icon-button"

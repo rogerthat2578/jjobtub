@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request = require('supertest');
 import { AppModule } from '../src/app.module';
@@ -47,6 +47,8 @@ const likedPlaylist = {
   id: 'playlist-liked',
   ownerId: user.id,
   name: '좋아요 표시한 재생 목록',
+  description: '',
+  isPublic: false,
   kind: 'LIKED',
   createdAt: new Date('2026-06-26T00:00:00.000Z'),
   updatedAt: new Date('2026-06-26T00:00:00.000Z'),
@@ -57,6 +59,8 @@ const customPlaylist = {
   id: 'playlist-custom',
   ownerId: user.id,
   name: '운동 영상',
+  description: 'Original playlist description',
+  isPublic: true,
   kind: 'CUSTOM',
   createdAt: new Date('2026-06-27T00:00:00.000Z'),
   updatedAt: new Date('2026-06-27T00:00:00.000Z'),
@@ -71,6 +75,8 @@ describe('Playlists API', () => {
       findFirst: jest.fn().mockResolvedValue(likedPlaylist),
       findUnique: jest.fn().mockResolvedValue(customPlaylist),
       create: jest.fn().mockResolvedValue(customPlaylist),
+      update: jest.fn().mockResolvedValue(customPlaylist),
+      delete: jest.fn().mockResolvedValue(customPlaylist),
     },
     playlistItem: {
       count: jest.fn().mockResolvedValue(1),
@@ -108,6 +114,8 @@ describe('Playlists API', () => {
     prisma.playlist.findFirst.mockResolvedValue(likedPlaylist);
     prisma.playlist.findUnique.mockResolvedValue(customPlaylist);
     prisma.playlist.create.mockResolvedValue(customPlaylist);
+    prisma.playlist.update.mockResolvedValue(customPlaylist);
+    prisma.playlist.delete.mockResolvedValue(customPlaylist);
     prisma.playlistItem.count.mockResolvedValue(1);
     prisma.playlistItem.findUnique.mockResolvedValue(null);
     prisma.playlistItem.findMany.mockResolvedValue([
@@ -138,6 +146,13 @@ describe('Playlists API', () => {
 
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api');
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+      }),
+    );
     await app.init();
   });
 
@@ -180,6 +195,74 @@ describe('Playlists API', () => {
         linkUrl: `/library/${customPlaylist.id}`,
       },
     });
+  });
+
+  it('updates a custom playlist name, description, and public state', async () => {
+    prisma.playlist.update.mockResolvedValueOnce({
+      ...customPlaylist,
+      name: 'Updated playlist',
+      description: 'Updated description',
+      isPublic: false,
+    });
+
+    const response = await request(app.getHttpServer())
+      .patch('/api/playlists/playlist-custom')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .send({ name: ' Updated playlist ', description: ' Updated description ', isPublic: false })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: 'playlist-custom',
+      name: 'Updated playlist',
+      description: 'Updated description',
+      isPublic: false,
+    });
+    expect(prisma.playlist.update).toHaveBeenCalledWith({
+      where: { id: customPlaylist.id },
+      data: {
+        name: 'Updated playlist',
+        description: 'Updated description',
+        isPublic: false,
+      },
+      include: {
+        items: {
+          include: { video: { include: { channel: true } } },
+          orderBy: [{ position: 'asc' }, { createdAt: 'desc' }],
+        },
+      },
+    });
+  });
+
+  it('rejects updating the liked playlist metadata', async () => {
+    prisma.playlist.findUnique.mockResolvedValueOnce(likedPlaylist);
+
+    await request(app.getHttpServer())
+      .patch('/api/playlists/playlist-liked')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .send({ name: 'Nope', isPublic: true })
+      .expect(400);
+
+    expect(prisma.playlist.update).not.toHaveBeenCalled();
+  });
+
+  it('deletes a custom playlist', async () => {
+    const response = await request(app.getHttpServer())
+      .delete('/api/playlists/playlist-custom')
+      .set('Cookie', 'jjobtub_session=session-token')
+      .expect(200);
+
+    expect(response.body).toEqual({ deleted: true });
+    expect(prisma.playlist.delete).toHaveBeenCalledWith({
+      where: { id: customPlaylist.id },
+    });
+  });
+
+  it('blocks non-owners from opening a private custom playlist directly', async () => {
+    prisma.playlist.findUnique.mockResolvedValueOnce({ ...customPlaylist, isPublic: false });
+
+    await request(app.getHttpServer()).get('/api/playlists/playlist-custom/videos').expect(403);
+
+    expect(prisma.playlistItem.findMany).not.toHaveBeenCalled();
   });
 
   it('saves a video to a selected playlist', async () => {
