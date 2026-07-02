@@ -236,6 +236,50 @@ describe('Channels API', () => {
     });
   });
 
+  it('allows the channel owner to save unchanged optional image URLs as empty values', async () => {
+    prisma.session.findUnique.mockResolvedValueOnce({
+      id: 'session-owner',
+      userId: 'user-1',
+      token: 'owner-token',
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      createdAt: new Date('2026-06-26T00:00:00.000Z'),
+      user: {
+        id: 'user-1',
+        email: 'owner@jjobtub.local',
+        displayName: 'Owner',
+        avatarUrl: null,
+      },
+    });
+    prisma.channel.update.mockResolvedValueOnce({
+      ...channel,
+      avatarUrl: null,
+      bannerUrl: null,
+    });
+
+    await request(app.getHttpServer())
+      .patch('/api/channels/channel-1')
+      .set('Cookie', 'jjobtub_session=owner-token')
+      .send({
+        name: 'Channel API',
+        description: 'Channel endpoint tests',
+        avatarUrl: '',
+        bannerUrl: '',
+        bannerMobilePosition: 'center',
+      })
+      .expect(200);
+
+    expect(prisma.channel.update).toHaveBeenCalledWith({
+      where: { id: 'channel-1' },
+      data: {
+        name: 'Channel API',
+        description: 'Channel endpoint tests',
+        avatarUrl: null,
+        bannerUrl: null,
+        bannerMobilePosition: 'center',
+      },
+    });
+  });
+
   it('updates channel home layout for the channel owner', async () => {
     prisma.session.findUnique.mockResolvedValueOnce({
       id: 'session-owner',

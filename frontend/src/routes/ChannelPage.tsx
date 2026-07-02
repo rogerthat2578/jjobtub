@@ -86,8 +86,8 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
         setChannel(channelResult);
         setEditName(channelResult.name);
         setEditDescription(channelResult.description);
-        setEditAvatarUrl(channelResult.avatarUrl);
-        setEditBannerUrl(channelResult.bannerUrl);
+        setEditAvatarUrl(toEditableImageUrl(channelResult.avatarUrl));
+        setEditBannerUrl(toEditableImageUrl(channelResult.bannerUrl));
         setEditBannerMobilePosition(channelResult.bannerMobilePosition ?? "center");
         setFeaturedVideoId(channelResult.featuredVideoId ?? "");
         setFeaturedPlaylistId(channelResult.featuredPlaylistId ?? "");
@@ -179,8 +179,8 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
     try {
       const updatedChannel = await uploadChannelAsset(channel.id, kind, file);
       setChannel({ ...updatedChannel, videoCount: channel.videoCount, joinedAt: channel.joinedAt });
-      setEditAvatarUrl(updatedChannel.avatarUrl);
-      setEditBannerUrl(updatedChannel.bannerUrl);
+      setEditAvatarUrl(toEditableImageUrl(updatedChannel.avatarUrl));
+      setEditBannerUrl(toEditableImageUrl(updatedChannel.bannerUrl));
       setEditBannerMobilePosition(updatedChannel.bannerMobilePosition ?? "center");
       showToast(kind === "avatar" ? "채널 아바타를 업데이트했습니다." : "채널 배너를 업데이트했습니다.", "success");
     } catch {
@@ -352,8 +352,8 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
                   onClick={() => {
                     setEditName(channel.name);
                     setEditDescription(channel.description);
-                    setEditAvatarUrl(channel.avatarUrl);
-                    setEditBannerUrl(channel.bannerUrl);
+                    setEditAvatarUrl(toEditableImageUrl(channel.avatarUrl));
+                    setEditBannerUrl(toEditableImageUrl(channel.bannerUrl));
                     setEditBannerMobilePosition(channel.bannerMobilePosition ?? "center");
                   }}
                 >
@@ -601,6 +601,14 @@ function mobileBannerObjectPosition(position?: BannerMobilePosition) {
   if (position === "left") return "20% center";
   if (position === "right") return "80% center";
   return "50% center";
+}
+
+function toEditableImageUrl(url?: string) {
+  if (!url || url.startsWith("data:")) {
+    return "";
+  }
+
+  return url;
 }
 
 function bannerMobilePositionLabel(position: BannerMobilePosition) {
