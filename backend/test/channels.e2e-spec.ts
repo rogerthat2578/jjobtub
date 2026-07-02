@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request = require('supertest');
 import { AppModule } from '../src/app.module';
@@ -121,6 +121,13 @@ describe('Channels API', () => {
 
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api');
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+      }),
+    );
     await app.init();
   });
 
@@ -260,8 +267,8 @@ describe('Channels API', () => {
       .patch('/api/channels/channel-1')
       .set('Cookie', 'jjobtub_session=owner-token')
       .send({
-        name: 'Channel API',
-        description: 'Channel endpoint tests',
+        name: 'test2',
+        description: '',
         avatarUrl: '',
         bannerUrl: '',
         bannerMobilePosition: 'center',
@@ -271,8 +278,8 @@ describe('Channels API', () => {
     expect(prisma.channel.update).toHaveBeenCalledWith({
       where: { id: 'channel-1' },
       data: {
-        name: 'Channel API',
-        description: 'Channel endpoint tests',
+        name: 'test2',
+        description: '',
         avatarUrl: null,
         bannerUrl: null,
         bannerMobilePosition: 'center',
