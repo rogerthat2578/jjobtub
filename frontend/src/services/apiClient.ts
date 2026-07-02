@@ -127,6 +127,7 @@ type ApiUser = {
   email: string;
   displayName: string;
   avatarUrl?: string | null;
+  createdAt?: string;
   channelId?: string;
 };
 
@@ -374,6 +375,23 @@ export async function register(input: { email: string; password: string; display
     body: JSON.stringify(input),
   });
   return mapUser(data.user);
+}
+
+export async function updateCurrentUser(input: { displayName?: string; avatarUrl?: string }) {
+  const data = await request<{ user: ApiUser }>("/auth/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return mapUser(data.user);
+}
+
+export async function changePassword(input: { currentPassword: string; newPassword: string }) {
+  await request<{ ok: boolean }>("/auth/password", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
 }
 
 export async function logout() {
@@ -708,6 +726,7 @@ function mapUser(user: ApiUser): User {
     email: user.email,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl ?? "",
+    createdAt: user.createdAt,
     channelId: user.channelId,
   };
 }

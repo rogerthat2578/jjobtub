@@ -1,9 +1,11 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import {
+  changePassword as changePasswordRequest,
   fetchCurrentUser,
   login as loginRequest,
   logout as logoutRequest,
   register as registerRequest,
+  updateCurrentUser,
 } from "../services/apiClient";
 import type { User } from "../types/user";
 
@@ -12,6 +14,8 @@ type AuthContextValue = {
   isLoading: boolean;
   login: (input: { email: string; password: string }) => Promise<void>;
   register: (input: { email: string; password: string; displayName: string }) => Promise<void>;
+  updateProfile: (input: { displayName?: string; avatarUrl?: string }) => Promise<User>;
+  changePassword: (input: { currentPassword: string; newPassword: string }) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -46,6 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async register(input) {
         setUser(await registerRequest(input));
+      },
+      async updateProfile(input) {
+        const updatedUser = await updateCurrentUser(input);
+        setUser(updatedUser);
+        return updatedUser;
+      },
+      async changePassword(input) {
+        await changePasswordRequest(input);
       },
       async logout() {
         await logoutRequest();

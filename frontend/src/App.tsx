@@ -4,6 +4,7 @@ import { AppLayout } from "./components/AppLayout";
 import { AuthSessionNotice } from "./components/AuthSessionNotice";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { ToastProvider } from "./components/ToastProvider";
+import { AccountPage } from "./routes/AccountPage";
 import { AuthPage } from "./routes/AuthPage";
 import { ChannelPage } from "./routes/ChannelPage";
 import { HomePage } from "./routes/HomePage";
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<AuthPage mode="login" />} />
             <Route path="/register" element={<AuthPage mode="register" />} />
+            <Route path="/account" element={<AccountPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route

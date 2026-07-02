@@ -8,6 +8,7 @@ import {
   MessageCircle,
   Reply,
   Search,
+  Settings,
   Sparkles,
   Trash2,
   Tv,
@@ -318,6 +319,10 @@ export function Header({ onMenuClick }: HeaderProps) {
                   </div>
                   {authError && <p className="form-error">{authError}</p>}
                   <div className="account-action-list">
+                    <Link className="account-link" to="/account" onClick={() => setIsAccountOpen(false)}>
+                      <Settings size={17} />
+                      <span>계정 관리</span>
+                    </Link>
                     {user.channelId && (
                       <Link className="account-link" to="/my-channel" onClick={() => setIsAccountOpen(false)}>
                         <Tv size={17} />

@@ -1,8 +1,10 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService, SESSION_COOKIE_NAME } from './auth.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -32,6 +34,16 @@ export class AuthController {
     }
 
     return { user };
+  }
+
+  @Patch('me')
+  async updateProfile(@Body() dto: UpdateProfileDto, @Req() request: Request) {
+    return { user: await this.authService.updateProfile(dto, request) };
+  }
+
+  @Patch('password')
+  async changePassword(@Body() dto: ChangePasswordDto, @Req() request: Request) {
+    return this.authService.changePassword(dto, request);
   }
 
   @Post('logout')

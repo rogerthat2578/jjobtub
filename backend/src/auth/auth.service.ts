@@ -1,9 +1,11 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { PasswordService } from './password.service';
 import type { AuthUser } from './auth.types';
 
@@ -88,6 +90,46 @@ export class AuthService {
     return toAuthUser(session.user);
   }
 
+  async updateProfile(dto: UpdateProfileDto, request: Pick<Request, 'headers'>) {
+    const session = await this.getActiveSession(request);
+    const data: { displayName?: string; avatarUrl?: string | null } = {};
+
+    if (dto.displayName !== undefined) {
+      const displayName = dto.displayName.trim();
+      if (!displayName) {
+        throw new BadRequestException('Display name is required');
+      }
+      data.displayName = displayName;
+    }
+    if (dto.avatarUrl !== undefined) {
+      const avatarUrl = dto.avatarUrl.trim();
+      data.avatarUrl = avatarUrl || null;
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: session.userId },
+      data,
+      include: { channels: { orderBy: { createdAt: 'asc' }, take: 1 } },
+    });
+
+    return toAuthUser(user);
+  }
+
+  async changePassword(dto: ChangePasswordDto, request: Pick<Request, 'headers'>) {
+    const session = await this.getActiveSession(request);
+    if (!(await this.passwordService.verifyPassword(dto.currentPassword, session.user.passwordHash))) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const passwordHash = await this.passwordService.hashPassword(dto.newPassword);
+    await this.prisma.user.update({
+      where: { id: session.userId },
+      data: { passwordHash },
+    });
+
+    return { ok: true };
+  }
+
   async logout(request: Pick<Request, 'headers'>) {
     const token = this.readSessionToken(request);
     if (token) {
@@ -119,6 +161,23 @@ export class AuthService {
       },
     });
   }
+
+  private async getActiveSession(request: Pick<Request, 'headers'>) {
+    const token = this.readSessionToken(request);
+    if (!token) {
+      throw new UnauthorizedException('Not logged in');
+    }
+
+    const session = await this.prisma.session.findUnique({
+      where: { token },
+      include: { user: { include: { channels: { orderBy: { createdAt: 'asc' }, take: 1 } } } },
+    });
+    if (!session || session.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException('Not logged in');
+    }
+
+    return session;
+  }
 }
 
 export function toAuthUser(user: {
@@ -126,6 +185,7 @@ export function toAuthUser(user: {
   email: string;
   displayName: string;
   avatarUrl: string | null;
+  createdAt?: Date;
   channels?: Array<{ id: string }>;
 }) {
   return {
@@ -133,6 +193,7 @@ export function toAuthUser(user: {
     email: user.email,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
+    createdAt: user.createdAt?.toISOString(),
     channelId: user.channels?.[0]?.id,
   };
 }
