@@ -79,7 +79,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
       return;
     }
 
-    const playlistRequest = user?.channelId === targetChannelId ? fetchPlaylists() : fetchChannelPlaylists(targetChannelId);
+    const playlistRequest = isMine ? fetchPlaylists() : fetchChannelPlaylists(targetChannelId);
 
     Promise.all([fetchChannel(targetChannelId), fetchChannelVideos(targetChannelId), playlistRequest])
       .then(([channelResult, videoResult, playlistResult]) => {
@@ -229,7 +229,8 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
     return <p className="empty-state">채널을 불러오는 중입니다.</p>;
   }
 
-  const canManageChannel = Boolean(user?.channelId && user.channelId === channel.id);
+  const isChannelOwner = Boolean(user?.channelId && user.channelId === channel.id);
+  const canManageChannel = Boolean(isMine && isChannelOwner);
   const videoCount = channel.videoCount ?? videos.videos.length;
   const featuredVideos = videos.videos.slice(0, 6);
   const filteredVideos = filterChannelVideos(videos.videos, videoFilter);
@@ -264,7 +265,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
               </div>
             )}
           </div>
-          {!canManageChannel && (
+          {!isChannelOwner && (
             <button
               className={`subscribe-button ${channel.subscribedByMe ? "subscribe-button-active" : ""}`}
               type="button"
@@ -540,11 +541,11 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
           <div className="section-heading-row">
             <div>
               <h2>재생 목록</h2>
-              <p>좋아요 표시한 재생 목록과 직접 만든 재생목록을 관리합니다.</p>
+              <p>{canManageChannel ? "좋아요 표시한 재생 목록과 직접 만든 재생목록을 관리합니다." : "이 채널에서 공개한 재생목록입니다."}</p>
             </div>
           </div>
           {playlists.length > 0 ? (
-            <section className="playlist-grid" aria-label="내 채널 재생목록">
+            <section className="playlist-grid" aria-label={canManageChannel ? "내 채널 재생목록" : "채널 공개 재생목록"}>
               {playlists.map((playlist) => (
                 <PlaylistCard
                   key={playlist.id}
