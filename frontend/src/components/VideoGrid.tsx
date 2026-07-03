@@ -1,8 +1,8 @@
+import type { ReactNode } from "react";
 import { channels } from "../data/channels";
 import type { Channel } from "../types/channel";
 import type { Video } from "../types/video";
 import { VideoCard } from "./VideoCard";
-import type { ReactNode } from "react";
 
 type VideoGridProps = {
   videos: Video[];

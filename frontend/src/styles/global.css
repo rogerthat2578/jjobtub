@@ -986,6 +986,11 @@ img {
   gap: 24px;
 }
 
+.home-feed {
+  display: grid;
+  gap: 22px;
+}
+
 .section-heading-row {
   display: flex;
   align-items: end;
@@ -1014,6 +1019,15 @@ img {
 
 .chip-row::-webkit-scrollbar {
   display: none;
+}
+
+.sticky-chip-row {
+  position: sticky;
+  top: 64px;
+  z-index: 12;
+  margin: -22px -28px 0;
+  padding: 12px 28px 10px;
+  background: var(--page-bg);
 }
 
 .chip {
@@ -1241,6 +1255,8 @@ img {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
 }
 
 .search-filter-bar button {

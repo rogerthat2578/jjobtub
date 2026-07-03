@@ -1,6 +1,6 @@
-import { Link } from "react-router-dom";
 import { useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import type { Channel } from "../types/channel";
 import type { Video } from "../types/video";
 

@@ -1,3 +1,4 @@
+import { SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { PlaylistCard } from "../components/PlaylistCard";
@@ -8,7 +9,7 @@ type SearchType = "all" | "videos" | "channels" | "playlists";
 
 const SEARCH_FILTERS: Array<{ value: SearchType; label: string }> = [
   { value: "all", label: "전체" },
-  { value: "videos", label: "영상" },
+  { value: "videos", label: "동영상" },
   { value: "channels", label: "채널" },
   { value: "playlists", label: "재생목록" },
 ];
@@ -27,12 +28,15 @@ export function SearchPage() {
   const page = normalizePage(searchParams.get("page"));
   const [result, setResult] = useState<SearchResult>({ videos: [], channels: [], playlists: [], channelsById: {} });
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    setIsLoading(true);
     setError("");
     fetchSearchResults({ q: query, sort, type, page: String(page), limit: "12" })
       .then(setResult)
-      .catch(() => setError("검색 결과를 불러오지 못했습니다."));
+      .catch(() => setError("검색 결과를 불러오지 못했습니다."))
+      .finally(() => setIsLoading(false));
   }, [page, query, sort, type]);
 
   function updateParam(key: string, value: string, defaultValue: string) {
@@ -50,18 +54,19 @@ export function SearchPage() {
 
   const totalCount = result.videos.length + result.channels.length + result.playlists.length;
   const activePageInfo = type === "all" ? undefined : result.pageInfo?.[type];
+  const resultSummary = `동영상 ${result.pageInfo?.videos.total ?? result.videos.length}개 · 채널 ${
+    result.pageInfo?.channels.total ?? result.channels.length
+  }개 · 재생목록 ${result.pageInfo?.playlists.total ?? result.playlists.length}개`;
 
   return (
-    <div className="page-stack">
+    <div className="page-stack search-page">
       <div className="page-heading search-heading">
         <div>
           <h1>{query ? `"${query}" 검색 결과` : "검색 결과"}</h1>
-          <p>
-            영상 {result.pageInfo?.videos.total ?? result.videos.length}개 · 채널 {result.pageInfo?.channels.total ?? result.channels.length}개 · 재생목록{" "}
-            {result.pageInfo?.playlists.total ?? result.playlists.length}개
-          </p>
+          <p>{resultSummary}</p>
         </div>
         <label className="sort-control">
+          <SlidersHorizontal size={16} />
           <span>정렬</span>
           <select value={sort} onChange={(event) => updateParam("sort", event.target.value, "latest")}>
             {SORT_OPTIONS.map((option) => (
@@ -86,7 +91,9 @@ export function SearchPage() {
         ))}
       </div>
 
-      {error ? (
+      {isLoading ? (
+        <p className="empty-state">검색 결과를 불러오는 중입니다.</p>
+      ) : error ? (
         <p className="empty-state">{error}</p>
       ) : totalCount === 0 ? (
         <p className="empty-state">검색 결과가 없습니다. 제목, 태그, 채널명, 카테고리, 설명을 다른 단어로 검색해보세요.</p>
@@ -94,8 +101,8 @@ export function SearchPage() {
         <div className="page-stack">
           {(type === "all" || type === "videos") && result.videos.length > 0 && (
             <section className="page-stack">
-              <h2 className="section-title">영상</h2>
-              <div className="result-list" aria-label="영상 검색 결과">
+              <h2 className="section-title">동영상</h2>
+              <div className="result-list" aria-label="동영상 검색 결과">
                 {result.videos.map((video) => (
                   <VideoCard key={video.id} video={video} channel={result.channelsById[video.channelId]} orientation="list" />
                 ))}
