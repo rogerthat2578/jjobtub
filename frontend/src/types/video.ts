@@ -15,6 +15,7 @@ export type Video = {
   tags: string[];
   likes: string;
   likesCount?: number;
+  commentCount?: number;
   likedByMe?: boolean;
   viewsCount?: number;
   visibility?: string;

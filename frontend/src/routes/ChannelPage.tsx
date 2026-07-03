@@ -1,6 +1,6 @@
 ﻿import { Bell, Settings } from "lucide-react";
 import { type CSSProperties, type ChangeEvent, type FormEvent, useEffect, useState } from "react";
-import { Navigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { PlaylistCard } from "../components/PlaylistCard";
 import { useToast } from "../components/ToastProvider";
@@ -258,6 +258,10 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
             <p>{channel.description || "채널 설명이 아직 없습니다."}</p>
             {canManageChannel && (
               <div className="channel-owner-actions">
+                <Link className="primary-button" to="/studio">
+                  <Bell size={16} />
+                  내 스튜디오
+                </Link>
                 <button className="pill-button" type="button" onClick={() => setIsCustomizationOpen((isOpen) => !isOpen)}>
                   <Settings size={16} />
                   채널 맞춤설정

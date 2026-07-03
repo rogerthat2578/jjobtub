@@ -1,6 +1,11 @@
 import { Channel, Video } from '@prisma/client';
 
-type VideoWithChannel = Video & { channel: Channel };
+type VideoWithChannel = Video & {
+  channel: Channel;
+  _count?: {
+    comments?: number;
+  };
+};
 type VideoViewerState = {
   likedByMe?: boolean;
   subscribedByMe?: boolean;
@@ -28,6 +33,8 @@ export function toVideoListItem(video: VideoWithChannel) {
     durationSeconds: video.durationSeconds,
     category: video.category,
     tags: video.tags,
+    likeCount: video.likeCount,
+    commentCount: video._count?.comments ?? 0,
     visibility: video.visibility,
     status: video.status,
   };

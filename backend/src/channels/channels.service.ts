@@ -52,7 +52,7 @@ export class ChannelsService {
     const isOwner = Boolean(user && channel.ownerId === user.id);
     const videos = await this.prisma.video.findMany({
       where: isOwner ? { channelId: id } : { channelId: id, status: 'READY', visibility: 'PUBLIC' },
-      include: { channel: true },
+      include: { channel: true, _count: { select: { comments: true } } },
       orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
     });
 

@@ -47,6 +47,8 @@ type ApiVideoListItem = {
   durationSeconds: number;
   category: string;
   tags?: string[];
+  likeCount?: number;
+  commentCount?: number;
   visibility?: string;
   status?: string;
   availableQualities?: number[];
@@ -645,8 +647,9 @@ function mapVideo(item: ApiVideoListItem | ApiVideoDetail): Video {
     duration: formatDuration(item.durationSeconds),
     category: item.category,
     tags: item.tags ?? [],
-    likes: "likeCount" in item ? item.likeCount.toLocaleString() : "0",
-    likesCount: "likeCount" in item ? item.likeCount : undefined,
+    likes: typeof item.likeCount === "number" ? item.likeCount.toLocaleString() : "0",
+    likesCount: typeof item.likeCount === "number" ? item.likeCount : undefined,
+    commentCount: item.commentCount,
     likedByMe: "likedByMe" in item ? item.likedByMe : undefined,
     viewsCount: item.views,
     visibility: "visibility" in item ? item.visibility : undefined,

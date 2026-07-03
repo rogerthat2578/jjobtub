@@ -43,7 +43,7 @@ export class VideosService {
             ]
           : undefined,
       },
-      include: { channel: true },
+      include: { channel: true, _count: { select: { comments: true } } },
       orderBy: videoOrderBy(query.sort),
       take: limit,
     });

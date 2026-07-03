@@ -13,6 +13,7 @@ import { PersonalVideoListPage } from "./routes/PersonalVideoListPage";
 import { PlaylistDetailPage } from "./routes/PlaylistDetailPage";
 import { PlaylistLibraryPage } from "./routes/PlaylistLibraryPage";
 import { SearchPage } from "./routes/SearchPage";
+import { StudioPage } from "./routes/StudioPage";
 import { UploadPage } from "./routes/UploadPage";
 import { WatchPage } from "./routes/WatchPage";
 import {
@@ -71,6 +72,7 @@ export default function App() {
             <Route path="/watch/:videoId" element={<WatchPage />} />
             <Route path="/channel/:channelId" element={<ChannelPage />} />
             <Route path="/my-channel" element={<ChannelPage isMine />} />
+            <Route path="/studio" element={<StudioPage />} />
             <Route path="/upload" element={<UploadPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
