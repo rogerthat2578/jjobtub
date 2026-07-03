@@ -12,7 +12,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="app-shell">
       <Header onMenuClick={() => setIsSidebarOpen((isOpen) => !isOpen)} />
-      <div className="app-body">
+      <div className={`app-body ${isSidebarOpen ? "app-body-sidebar-open" : ""}`}>
         <Sidebar isOpen={isSidebarOpen} onNavigate={() => setIsSidebarOpen(false)} />
         {isSidebarOpen && (
           <button

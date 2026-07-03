@@ -1,4 +1,4 @@
-﻿import { Bell, Settings } from "lucide-react";
+﻿import { Bell, LayoutDashboard, Settings } from "lucide-react";
 import { type CSSProperties, type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -259,7 +259,7 @@ export function ChannelPage({ isMine = false }: ChannelPageProps) {
             {canManageChannel && (
               <div className="channel-owner-actions">
                 <Link className="primary-button" to="/studio">
-                  <Bell size={16} />
+                  <LayoutDashboard size={16} />
                   내 스튜디오
                 </Link>
                 <button className="pill-button" type="button" onClick={() => setIsCustomizationOpen((isOpen) => !isOpen)}>

@@ -945,16 +945,25 @@ img {
 
 .app-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-body-sidebar-open {
   grid-template-columns: 224px minmax(0, 1fr);
 }
 
 .sidebar {
   position: sticky;
   top: 64px;
+  display: none;
   height: calc(100vh - 64px);
   padding: 14px 12px;
   border-right: 1px solid var(--border);
   background: var(--page-bg);
+}
+
+.sidebar-open {
+  display: block;
 }
 
 .sidebar-backdrop {
@@ -1976,7 +1985,11 @@ img {
 .comment-list {
   display: grid;
   gap: 18px;
-  margin-top: 16px;
+  margin-top: 24px;
+}
+
+.comment-form + .empty-state {
+  margin-top: 24px;
 }
 
 .comment {
