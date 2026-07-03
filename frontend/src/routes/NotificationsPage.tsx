@@ -1,4 +1,4 @@
-import { Bell, CheckCheck, Trash2 } from "lucide-react";
+import { Bell, CheckCheck, Heart, ListPlus, MessageCircle, Reply, Trash2, UserRoundPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -45,7 +45,7 @@ export function NotificationsPage() {
       setTotalCount(result.totalCount);
       setPageInfo(result.pageInfo);
     } catch {
-      setError("알림을 불러오지 못했습니다.");
+      setError("알림을 불러오지 못했습니다. 잠시 후 다시 시도하세요.");
     } finally {
       setIsLoading(false);
     }
@@ -58,11 +58,16 @@ export function NotificationsPage() {
 
   async function handleReadAll() {
     await markAllNotificationsRead();
-    setNotifications((items) => items.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })));
+    const readAt = new Date().toISOString();
+    setNotifications((items) => items.map((item) => ({ ...item, readAt: item.readAt ?? readAt })));
     setUnreadCount(0);
   }
 
   async function handleDeleteAll() {
+    if (notifications.length === 0 || !window.confirm("현재 조회된 알림을 포함해 모든 알림을 삭제할까요?")) {
+      return;
+    }
+
     await deleteAllNotifications();
     setNotifications([]);
     setUnreadCount(0);
@@ -93,7 +98,7 @@ export function NotificationsPage() {
       <div className="page-heading">
         <div>
           <h1>알림</h1>
-          <p>알림은 직접 삭제하기 전까지 보관되며, 전체 기록은 페이지 단위로 조회합니다.</p>
+          <p>댓글, 답글, 좋아요, 구독, 재생목록 활동을 한곳에서 확인합니다. 알림은 직접 삭제하기 전까지 보관됩니다.</p>
         </div>
         <div className="notifications-page-actions">
           <button className="pill-button" type="button" onClick={handleReadAll} disabled={unreadCount === 0}>
@@ -136,9 +141,9 @@ export function NotificationsPage() {
       ) : (
         <section className="notifications-list-page" aria-label="알림 목록">
           {notifications.map((notification) => (
-            <article className={`notifications-page-item ${notification.readAt ? "" : "notifications-page-item-unread"}`} key={notification.id}>
+            <article className={`notifications-page-item notification-type-${notification.type.toLowerCase().replace("_", "-")} ${notification.readAt ? "" : "notifications-page-item-unread"}`} key={notification.id}>
               <span className="notifications-page-icon" aria-hidden="true">
-                <Bell size={18} />
+                {renderNotificationIcon(notification.type)}
               </span>
               <div>
                 {notification.linkUrl ? (
@@ -192,5 +197,14 @@ function buildNotificationFilters(notifications: AppNotification[], unreadCount:
     { value: "PLAYLIST", label: "재생목록", count: typeCounts.PLAYLIST },
   ];
 
-  return filters;
+  return filters.filter((filter) => filter.value === "all" || filter.value === "unread" || filter.count > 0);
+}
+
+function renderNotificationIcon(type: AppNotification["type"]) {
+  if (type === "COMMENT") return <MessageCircle size={18} />;
+  if (type === "REPLY") return <Reply size={18} />;
+  if (type === "COMMENT_LIKE" || type === "VIDEO_LIKE") return <Heart size={18} />;
+  if (type === "SUBSCRIPTION") return <UserRoundPlus size={18} />;
+  if (type === "PLAYLIST") return <ListPlus size={18} />;
+  return <Bell size={18} />;
 }

@@ -64,7 +64,7 @@ export class NotificationsService {
       items: notifications.map((notification) => ({
         id: notification.id,
         type: notification.type,
-        message: notification.message,
+        message: normalizeNotificationMessage(notification.type, notification.message),
         linkUrl: notification.linkUrl,
         readAt: notification.readAt?.toISOString() ?? null,
         createdAt: notification.createdAt.toISOString(),
@@ -164,7 +164,7 @@ export class NotificationsService {
       data: {
         userId: input.userId,
         type: input.type,
-        message: input.message,
+        message: normalizeNotificationMessage(input.type, input.message),
         linkUrl: input.linkUrl,
       },
     });
@@ -222,4 +222,40 @@ function normalizeNotificationFilter(value: string | undefined): NotificationFil
 
 function isNotificationType(value: string | undefined): value is NotificationType {
   return value === 'COMMENT' || value === 'REPLY' || value === 'COMMENT_LIKE' || value === 'VIDEO_LIKE' || value === 'SUBSCRIPTION' || value === 'PLAYLIST';
+}
+
+function normalizeNotificationMessage(type: NotificationType, message: string) {
+  if (!hasMojibake(message)) {
+    return message;
+  }
+
+  const actorName = message.split('?')[0]?.trim();
+  if (actorName && type === 'COMMENT') return `${actorName}님이 내 영상에 댓글을 남겼습니다.`;
+  if (actorName && type === 'REPLY') return `${actorName}님이 내 댓글에 답글을 남겼습니다.`;
+  if (actorName && type === 'COMMENT_LIKE') return `${actorName}님이 내 댓글을 좋아합니다.`;
+  if (actorName && type === 'VIDEO_LIKE') return `${actorName}님이 내 영상을 좋아합니다.`;
+  if (actorName && type === 'SUBSCRIPTION') return `${actorName}님이 내 채널을 구독했습니다.`;
+
+  if (type === 'PLAYLIST') {
+    const quotedParts = Array.from(message.matchAll(/"([^"]+)"/g)).map((match) => match[1]);
+    if (quotedParts.length >= 2) return `"${quotedParts[0]}" 영상을 "${quotedParts[1]}" 재생목록에 저장했습니다.`;
+    if (quotedParts.length === 1 && message.includes('먯꽌')) return `"${quotedParts[0]}" 재생목록에서 영상을 제거했습니다.`;
+    if (quotedParts.length === 1) return `"${quotedParts[0]}" 재생목록을 만들었습니다.`;
+  }
+
+  return notificationTypeFallbackMessage(type);
+}
+
+function hasMojibake(message: string) {
+  return /[?]|\uFFFD|醫|援|梨|곸|볤|듦|깮|뚮|젣|섏|덈|쒖/.test(message);
+}
+
+function notificationTypeFallbackMessage(type: NotificationType) {
+  if (type === 'COMMENT') return '내 영상에 새 댓글이 등록되었습니다.';
+  if (type === 'REPLY') return '내 댓글에 새 답글이 등록되었습니다.';
+  if (type === 'COMMENT_LIKE') return '내 댓글에 좋아요가 추가되었습니다.';
+  if (type === 'VIDEO_LIKE') return '내 영상에 좋아요가 추가되었습니다.';
+  if (type === 'SUBSCRIPTION') return '내 채널에 새 구독자가 추가되었습니다.';
+  if (type === 'PLAYLIST') return '재생목록 활동이 업데이트되었습니다.';
+  return '새 알림이 있습니다.';
 }
