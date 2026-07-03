@@ -1906,6 +1906,28 @@ img {
   flex-wrap: wrap;
 }
 
+.comments-toggle-button {
+  flex: 0 0 auto;
+}
+
+.comments-collapsed-panel {
+  width: 100%;
+  min-height: 56px;
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 16px;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+  font-weight: 800;
+  text-align: left;
+}
+
+.comments-collapsed-panel:hover {
+  background: var(--surface-hover);
+}
+
 .comments-section h2 {
   margin: 0;
   font-size: 20px;
@@ -2339,14 +2361,20 @@ img {
 
 .channel-featured-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+  grid-template-columns: minmax(300px, 520px) minmax(260px, 1fr);
   gap: 18px;
+  align-items: start;
 }
 
 .channel-featured-panel {
   display: grid;
   align-content: start;
   gap: 12px;
+}
+
+.channel-featured-panel .video-grid {
+  grid-template-columns: minmax(0, 420px);
+  gap: 16px;
 }
 
 .channel-featured-panel h2 {
@@ -3886,12 +3914,30 @@ img {
 }
 
 @media (max-width: 1120px) {
+  .app-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .content {
+    padding: 18px 18px 44px;
+  }
+
   .watch-layout {
     grid-template-columns: 1fr;
   }
 
   .recommendations {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+  }
+
+  .watch-main {
+    max-width: 100%;
   }
 
   .playlist-queue {
@@ -3909,6 +3955,14 @@ img {
   .playlist-management-actions {
     justify-content: flex-start;
     width: 100%;
+  }
+
+  .channel-featured-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .channel-featured-panel .video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 420px));
   }
 }
 
@@ -3931,10 +3985,11 @@ img {
   }
 
   .app-body {
-    grid-template-columns: 64px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sidebar {
+    display: none;
     top: 113px;
     height: calc(100vh - 113px);
     padding: 10px 8px;

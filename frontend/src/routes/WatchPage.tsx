@@ -79,6 +79,7 @@ export function WatchPage() {
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isProcessingQualities, setIsProcessingQualities] = useState(false);
   const [isUploadingSubtitle, setIsUploadingSubtitle] = useState(false);
+  const [isCommentsExpanded, setIsCommentsExpanded] = useState(true);
   const viewedVideoIdRef = useRef<string | null>(null);
   const subtitleInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -88,6 +89,7 @@ export function WatchPage() {
       return;
     }
     viewedVideoIdRef.current = null;
+    setIsCommentsExpanded(typeof window === "undefined" ? true : window.innerWidth > 1120);
 
     Promise.all([
       fetchVideo(videoId),
@@ -619,7 +621,12 @@ export function WatchPage() {
                 </button>
               ))}
             </div>
+            <button className="pill-button comments-toggle-button" type="button" onClick={() => setIsCommentsExpanded((isExpanded) => !isExpanded)} aria-expanded={isCommentsExpanded}>
+              {isCommentsExpanded ? "댓글 접기" : "댓글 펼치기"}
+            </button>
           </div>
+          {isCommentsExpanded ? (
+            <>
           <form className="comment-form" onSubmit={handleCommentSubmit}>
             <label htmlFor="comment-body">댓글 작성</label>
             <textarea
@@ -646,6 +653,12 @@ export function WatchPage() {
             onDelete={handleCommentDelete}
             onLike={handleCommentLike}
           />
+            </>
+          ) : (
+            <button className="comments-collapsed-panel" type="button" onClick={() => setIsCommentsExpanded(true)}>
+              댓글 {comments.length.toLocaleString()}개가 접혀 있습니다. 펼쳐서 확인하기
+            </button>
+          )}
         </section>
       </section>
 
