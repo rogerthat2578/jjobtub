@@ -130,6 +130,21 @@ export class VideoThumbnailService {
     return variants;
   }
 
+  async probeVideoDuration(inputPath: string) {
+    const ffprobePath = this.resolveFfprobePath();
+    const { stdout } = await execFileAsync(ffprobePath, [
+      '-v',
+      'error',
+      '-show_entries',
+      'format=duration',
+      '-of',
+      'default=noprint_wrappers=1:nokey=1',
+      inputPath,
+    ]);
+    const duration = Number(stdout.trim());
+    return Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : 0;
+  }
+
   private async probeVideoHeight(inputPath: string) {
     const ffprobePath = this.resolveFfprobePath();
     const { stdout } = await execFileAsync(ffprobePath, [

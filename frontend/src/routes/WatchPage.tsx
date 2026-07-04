@@ -148,6 +148,16 @@ export function WatchPage() {
     return () => window.clearTimeout(timeoutId);
   }, [comments, targetCommentId]);
 
+  useEffect(() => {
+    function handleResponsiveComments() {
+      setIsCommentsExpanded(window.innerWidth > 1120);
+    }
+
+    handleResponsiveComments();
+    window.addEventListener("resize", handleResponsiveComments);
+    return () => window.removeEventListener("resize", handleResponsiveComments);
+  }, []);
+
   async function recordVideoView(targetVideoId: string) {
     if (viewedVideoIdRef.current === targetVideoId) {
       return;

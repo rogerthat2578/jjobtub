@@ -258,6 +258,7 @@ export class VideosService {
     }
 
     const savedFile = await this.storage.saveOriginalVideo(id, file.buffer);
+    const durationSeconds = await this.thumbnails.probeVideoDuration(savedFile.absolutePath);
     await this.prisma.videoFile.deleteMany({
       where: { videoId: id, kind: 'ORIGINAL' },
     });
@@ -275,7 +276,11 @@ export class VideosService {
     await this.extractAndStoreQualityVariants(id, savedFile.absolutePath);
     await this.prisma.video.update({
       where: { id },
-      data: { status: 'READY' },
+      data: {
+        status: 'READY',
+        durationSeconds,
+        publishedAt: video.publishedAt ?? new Date(),
+      },
     });
 
     return {

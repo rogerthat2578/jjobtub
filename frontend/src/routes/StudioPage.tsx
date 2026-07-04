@@ -14,11 +14,13 @@ import {
   PlaySquare,
   Settings,
   Upload,
+  X,
 } from "lucide-react";
-import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastProvider";
+import { VideoUploadPanel } from "../components/VideoUploadPanel";
 import {
   fetchChannel,
   fetchChannelVideos,
@@ -73,6 +75,9 @@ export function StudioPage() {
   const [editBannerMobilePosition, setEditBannerMobilePosition] = useState<BannerMobilePosition>("center");
   const [isSavingChannel, setIsSavingChannel] = useState(false);
   const [uploadingAsset, setUploadingAsset] = useState<"avatar" | "banner" | null>(null);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isUploadDialogBusy, setIsUploadDialogBusy] = useState(false);
+  const uploadDialogRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (isLoading) {
@@ -99,6 +104,21 @@ export function StudioPage() {
       .catch(() => setError("스튜디오 정보를 불러오지 못했습니다. 잠시 후 다시 시도하세요."))
       .finally(() => setIsFetching(false));
   }, [isLoading, user?.channelId]);
+
+  useEffect(() => {
+    if (!isUploadDialogOpen || isUploadDialogBusy) {
+      return;
+    }
+
+    function handleDocumentPointerDown(event: PointerEvent) {
+      if (uploadDialogRef.current && !uploadDialogRef.current.contains(event.target as Node)) {
+        setIsUploadDialogOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handleDocumentPointerDown, true);
+    return () => document.removeEventListener("pointerdown", handleDocumentPointerDown, true);
+  }, [isUploadDialogBusy, isUploadDialogOpen]);
 
   const videos = videoResult.videos;
   const filteredVideos = useMemo(
@@ -181,6 +201,33 @@ export function StudioPage() {
     }
   }
 
+  async function handleStudioUploadComplete() {
+    setIsUploadDialogOpen(false);
+    if (!user?.channelId) {
+      return;
+    }
+
+    try {
+      const [channelResult, videos, playlistResult] = await Promise.all([fetchChannel(user.channelId), fetchChannelVideos(user.channelId), fetchPlaylists()]);
+      setChannel(channelResult);
+      setVideoResult(videos);
+      setPlaylists(playlistResult);
+      setEditName(channelResult.name);
+      setEditDescription(channelResult.description);
+      setEditAvatarUrl(toEditableImageUrl(channelResult.avatarUrl));
+      setEditBannerUrl(toEditableImageUrl(channelResult.bannerUrl));
+      setEditBannerMobilePosition(channelResult.bannerMobilePosition ?? "center");
+    } catch {
+      setError("업로드 후 Studio 목록을 새로고침하지 못했습니다. 새로고침하면 최신 상태를 확인할 수 있습니다.");
+    }
+  }
+
+  function handleCloseUploadDialog() {
+    if (!isUploadDialogBusy) {
+      setIsUploadDialogOpen(false);
+    }
+  }
+
   return (
     <div className="studio-shell">
       <aside className="studio-sidebar" aria-label="스튜디오 메뉴">
@@ -199,10 +246,10 @@ export function StudioPage() {
             </button>
           ))}
         </nav>
-        <Link className="studio-upload-link" to="/upload">
+        <button className="studio-upload-link" type="button" onClick={() => setIsUploadDialogOpen(true)}>
           <Upload size={18} />
           <span>영상 업로드</span>
-        </Link>
+        </button>
       </aside>
 
       <section className="studio-main">
@@ -215,10 +262,10 @@ export function StudioPage() {
             <Link className="pill-button" to="/my-channel">
               공개 채널 보기
             </Link>
-            <Link className="primary-button" to="/upload">
+            <button className="primary-button" type="button" onClick={() => setIsUploadDialogOpen(true)}>
               <Upload size={17} />
               업로드
-            </Link>
+            </button>
           </div>
         </header>
 
@@ -430,6 +477,40 @@ export function StudioPage() {
           </section>
         )}
       </section>
+      {isUploadDialogOpen && (
+        <div
+          className="modal-backdrop studio-upload-dialog-backdrop"
+          role="presentation"
+        >
+          <button
+            className="studio-upload-dialog-dismiss"
+            type="button"
+            aria-label="업로드 창 닫기"
+            disabled={isUploadDialogBusy}
+            onClick={handleCloseUploadDialog}
+            onMouseDown={handleCloseUploadDialog}
+            onPointerDown={handleCloseUploadDialog}
+          />
+          <section
+            ref={uploadDialogRef}
+            className="studio-upload-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="studio-upload-dialog-title"
+          >
+            <header className="studio-upload-dialog-header">
+              <div>
+                <h2 id="studio-upload-dialog-title">영상 업로드</h2>
+                <p>Studio를 떠나지 않고 새 영상을 등록합니다.</p>
+              </div>
+              <button className="icon-button" type="button" aria-label="업로드 창 닫기" disabled={isUploadDialogBusy} onClick={handleCloseUploadDialog}>
+                <X size={20} />
+              </button>
+            </header>
+            <VideoUploadPanel onUploaded={handleStudioUploadComplete} onBusyChange={setIsUploadDialogBusy} />
+          </section>
+        </div>
+      )}
     </div>
   );
 }
